@@ -570,7 +570,7 @@ class Bordados_Ajax_Assistente {
                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-top: 15px;">
                     <div>
                         <label style="display: block; margin-bottom: 5px; font-weight: 600; font-size: 13px;">Email Secundário</label>
-                        <input type="email" name="email_secundario" value="<?php echo esc_attr($dados['email_secundario']); ?>"
+                        <input type="text" name="email_secundario" value="<?php echo esc_attr($dados['email_secundario']); ?>"
                                style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px;">
                     </div>
                     <div>
@@ -861,7 +861,7 @@ class Bordados_Ajax_Assistente {
         update_user_meta($cliente_id, 'last_name', $sobrenome);
         update_user_meta($cliente_id, 'titulo_cliente', sanitize_text_field($_POST['titulo_cliente']));
         update_user_meta($cliente_id, 'apelido_cliente', sanitize_text_field($_POST['apelido_cliente']));
-        update_user_meta($cliente_id, 'email_secundario', sanitize_email($_POST['email_secundario']));
+        update_user_meta($cliente_id, 'email_secundario', sanitize_text_field($_POST['email_secundario']));
         update_user_meta($cliente_id, 'email_invoice', sanitize_email($_POST['email_invoice']));
         update_user_meta($cliente_id, 'telefone_whatsapp', sanitize_text_field($_POST['telefone_whatsapp']));
         update_user_meta($cliente_id, 'cpf_cnpj', sanitize_text_field($_POST['cpf_cnpj']));
