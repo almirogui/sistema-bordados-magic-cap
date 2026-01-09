@@ -56,11 +56,17 @@ class Bordados_Shortcode_Painel_Assistente {
                         <h2 style="margin: 0 0 5px 0;">👩‍💼 Painel da Assistente</h2>
                         <p style="margin: 0; opacity: 0.9;">Bem-vinda, <strong><?php echo esc_html($user->display_name); ?></strong>!</p>
                     </div>
-                    <a href="<?php echo esc_url($logout_url); ?>" 
-                       style="background: rgba(255,255,255,0.2); color: white; padding: 10px 20px; border-radius: 5px; text-decoration: none; font-weight: 500; display: flex; align-items: center; gap: 8px;"
-                       onclick="return confirm('Deseja realmente sair do sistema?');">
-                        🚪 Sair
-                    </a>
+                    <div style="display: flex; gap: 10px; align-items: center;">
+                        <a href="<?php echo site_url('/painel-revisor/'); ?>" 
+                           style="background: rgba(255,255,255,0.2); color: white; padding: 10px 20px; border-radius: 5px; text-decoration: none; font-weight: 500; display: flex; align-items: center; gap: 8px;">
+                            🔍 Painel Revisor
+                        </a>
+                        <a href="<?php echo esc_url($logout_url); ?>" 
+                           style="background: rgba(255,255,255,0.2); color: white; padding: 10px 20px; border-radius: 5px; text-decoration: none; font-weight: 500; display: flex; align-items: center; gap: 8px;"
+                           onclick="return confirm('Deseja realmente sair do sistema?');">
+                            🚪 Sair
+                        </a>
+                    </div>
                 </div>
             </div>
             
@@ -429,17 +435,53 @@ class Bordados_Shortcode_Painel_Assistente {
      * Renderizar aba de Clientes
      */
     private static function render_aba_clientes() {
+        // Verificar se há pesquisa
+        $termo_pesquisa = isset($_GET['busca_cliente']) ? sanitize_text_field($_GET['busca_cliente']) : '';
+        
         // Buscar clientes
-        $clientes = get_users(array(
+        $args = array(
             'role'    => 'cliente_bordados',
             'orderby' => 'display_name',
             'order'   => 'ASC'
-        ));
+        );
+        
+        // Se há termo de pesquisa, buscar por nome ou email
+        if (!empty($termo_pesquisa)) {
+            $args['search'] = '*' . $termo_pesquisa . '*';
+            $args['search_columns'] = array('user_login', 'user_email', 'display_name');
+        }
+        
+        $clientes = get_users($args);
         
         ob_start();
         ?>
         <div class="lista-clientes">
-            <h4 style="margin-bottom: 15px;">👥 Clientes Cadastrados (<?php echo count($clientes); ?>)</h4>
+            <h4 style="margin-bottom: 15px;">👥 Clientes Cadastrados</h4>
+            
+            <!-- Campo de Pesquisa -->
+            <div style="margin-bottom: 20px; background: #f8f9fa; padding: 15px; border-radius: 10px;">
+                <form method="GET" action="" style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+                    <input type="hidden" name="aba" value="clientes">
+                    <div style="flex: 1; min-width: 200px;">
+                        <input type="text" name="busca_cliente" placeholder="🔍 Pesquisar por nome ou email..."
+                               value="<?php echo esc_attr($termo_pesquisa); ?>"
+                               style="width: 100%; padding: 10px 15px; border: 1px solid #ddd; border-radius: 5px; font-size: 14px;">
+                    </div>
+                    <button type="submit" style="padding: 10px 20px; background: #667eea; color: white; border: none; border-radius: 5px; cursor: pointer; font-weight: 500;">
+                        🔍 Buscar
+                    </button>
+                    <?php if (!empty($termo_pesquisa)): ?>
+                        <a href="?aba=clientes" style="padding: 10px 20px; background: #6c757d; color: white; border-radius: 5px; text-decoration: none; font-weight: 500;">
+                            ✕ Limpar
+                        </a>
+                    <?php endif; ?>
+                </form>
+                <?php if (!empty($termo_pesquisa)): ?>
+                    <p style="margin: 10px 0 0 0; font-size: 13px; color: #666;">
+                        Mostrando <?php echo count($clientes); ?> resultado(s) para "<strong><?php echo esc_html($termo_pesquisa); ?></strong>"
+                    </p>
+                <?php endif; ?>
+            </div>
             
             <?php if (empty($clientes)): ?>
                 <div style="background: #f8f9fa; padding: 30px; text-align: center; border-radius: 10px;">

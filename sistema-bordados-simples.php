@@ -93,6 +93,9 @@ class SistemaBordadosSimples {
         require_once BORDADOS_PLUGIN_PATH . 'includes/class-assistente.php';
         require_once BORDADOS_PLUGIN_PATH . 'includes/ajax/class-ajax-assistente.php';
         new Bordados_Ajax_Assistente();
+    // Sistema de Revisor - v3.2.1
+        require_once BORDADOS_PLUGIN_PATH . 'includes/ajax/class-ajax-revisor.php';
+        new Bordados_Ajax_Revisor();
       }
 
     public function init() {

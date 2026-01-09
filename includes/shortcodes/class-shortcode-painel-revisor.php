@@ -2,7 +2,10 @@
 /**
  * Shortcode: Painel do Revisor - [bordados_painel_revisor]
  * 
- * ATUALIZADO: Adicionada seção de orçamentos pendentes
+ * ATUALIZADO v3.2.1: 
+ * - Permissão para assistente_bordados
+ * - Link para painel assistente
+ * - Modal de solicitar acertos com upload de imagens (1-3)
  */
 
 if (!defined('ABSPATH')) {
@@ -20,9 +23,22 @@ class Bordados_Shortcode_Painel_Revisor {
         }
         
         $user = wp_get_current_user();
-        if (!in_array('revisor_bordados', $user->roles) && !in_array('administrator', $user->roles)) {
+        // ATUALIZADO: Permitir assistente_bordados também
+        $roles_permitidas = array('revisor_bordados', 'assistente_bordados', 'administrator');
+        $tem_permissao = false;
+        foreach ($roles_permitidas as $role) {
+            if (in_array($role, $user->roles)) {
+                $tem_permissao = true;
+                break;
+            }
+        }
+        
+        if (!$tem_permissao) {
             return '<p>Access restricted to reviewers.</p>';
         }
+        
+        // Verificar se é assistente (para mostrar link de volta)
+        $is_assistente = in_array('assistente_bordados', $user->roles);
         
         $revisor_id = $user->ID;
         
@@ -39,12 +55,22 @@ class Bordados_Shortcode_Painel_Revisor {
             <h3>🔍 Painel do Revisor</h3>
             
             <div style="background: #e3f2fd; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
-                <h4 style="margin: 0 0 10px 0;">👋 Bem-vindo, <?php echo esc_html($user->display_name); ?>!</h4>
-                <p style="margin: 0;">
-                    <strong>Orçamentos Pendentes:</strong> <?php echo count($orcamentos_pendentes); ?> |
-                    <strong>Aguardando Revisão:</strong> <?php echo count($trabalhos_aguardando); ?> |
-                    <strong>Em Revisão (seus):</strong> <?php echo count($trabalhos_em_revisao); ?>
-                </p>
+                <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+                    <div>
+                        <h4 style="margin: 0 0 10px 0;">👋 Bem-vindo, <?php echo esc_html($user->display_name); ?>!</h4>
+                        <p style="margin: 0;">
+                            <strong>Orçamentos Pendentes:</strong> <?php echo count($orcamentos_pendentes); ?> |
+                            <strong>Aguardando Revisão:</strong> <?php echo count($trabalhos_aguardando); ?> |
+                            <strong>Em Revisão (seus):</strong> <?php echo count($trabalhos_em_revisao); ?>
+                        </p>
+                    </div>
+                    <?php if ($is_assistente): ?>
+                    <a href="<?php echo site_url('/painel-assistente/'); ?>" 
+                       style="background: #667eea; color: white; padding: 10px 20px; border-radius: 5px; text-decoration: none; font-weight: 500;">
+                        👩‍💼 Painel Assistente
+                    </a>
+                    <?php endif; ?>
+                </div>
             </div>
             
             <!-- NOVO: SEÇÃO DE ORÇAMENTOS -->
@@ -140,8 +166,73 @@ class Bordados_Shortcode_Painel_Revisor {
             </div>
         </div>
         
+        <!-- NOVO: Modal para solicitar acertos com upload de imagens -->
+        <div id="modal-acertos" style="display:none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 10003;">
+            <div style="position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: white; padding: 30px; border-radius: 10px; max-width: 600px; width: 90%; max-height: 90%; overflow-y: auto;">
+                <h4>🔧 Solicitar Acertos ao Programador</h4>
+                
+                <div id="acertos-info" style="background: #fff3cd; padding: 15px; border-radius: 5px; margin-bottom: 20px;"></div>
+                
+                <form id="form-acertos" enctype="multipart/form-data">
+                    <input type="hidden" id="acertos-pedido-id" name="pedido_id">
+                    
+                    <div style="margin-bottom: 20px;">
+                        <label><strong>📝 Descreva os acertos necessários: *</strong></label>
+                        <textarea id="acertos-descricao" name="obs_revisor" rows="5" required
+                                  style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 5px;"
+                                  placeholder="Descreva detalhadamente o que precisa ser corrigido..."></textarea>
+                    </div>
+                    
+                    <!-- Upload de imagens para acertos -->
+                    <div style="background: #e3f2fd; padding: 15px; border-radius: 5px; margin-bottom: 20px;">
+                        <label><strong>📷 Anexar Imagens de Referência (opcional):</strong></label>
+                        <p style="margin: 5px 0 10px 0; font-size: 13px; color: #666;">
+                            Envie até 3 imagens mostrando os problemas a serem corrigidos (JPG, PNG ou PDF).
+                        </p>
+                        
+                        <div id="uploads-acertos-container">
+                            <div class="upload-acertos-item" style="margin-bottom: 10px;">
+                                <input type="file" name="imagens_acertos[]" 
+                                       accept=".jpg,.jpeg,.png,.pdf" 
+                                       style="width: 80%;">
+                                <small>Imagem 1</small>
+                            </div>
+                            <div class="upload-acertos-item" style="display: none; margin-bottom: 10px;">
+                                <input type="file" name="imagens_acertos[]" 
+                                       accept=".jpg,.jpeg,.png,.pdf" 
+                                       style="width: 70%;">
+                                <button type="button" onclick="removerUploadAcertos(this)" class="button-small" style="margin-left: 5px;">✕</button>
+                                <small>Imagem 2</small>
+                            </div>
+                            <div class="upload-acertos-item" style="display: none; margin-bottom: 10px;">
+                                <input type="file" name="imagens_acertos[]" 
+                                       accept=".jpg,.jpeg,.png,.pdf" 
+                                       style="width: 70%;">
+                                <button type="button" onclick="removerUploadAcertos(this)" class="button-small" style="margin-left: 5px;">✕</button>
+                                <small>Imagem 3</small>
+                            </div>
+                        </div>
+                        <button type="button" onclick="adicionarUploadAcertos()" class="button button-small" id="btn-add-upload-acertos">
+                            ➕ Adicionar Outra Imagem
+                        </button>
+                    </div>
+                    
+                    <div style="text-align: center; margin-top: 20px;">
+                        <button type="submit" class="button" style="background: #ffc107; border-color: #ffc107; color: #000; padding: 12px 30px; font-size: 16px;">
+                            🔧 Solicitar Acertos
+                        </button>
+                        <button type="button" onclick="fecharModalAcertos()" class="button" style="margin-left: 10px; padding: 12px 20px;">
+                            ✕ Cancelar
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+        
         <script>
-        // Abrir modal de orçamento
+        // ========================================
+        // MODAL DE ORÇAMENTO
+        // ========================================
         function abrirModalOrcamento(pedidoId, clienteId, nomeBordado, clienteNome) {
             document.getElementById('orcamento-pedido-id').value = pedidoId;
             document.getElementById('orcamento-cliente-id').value = clienteId;
@@ -155,18 +246,15 @@ class Bordados_Shortcode_Painel_Revisor {
             document.getElementById('modal-orcamento').style.display = 'block';
         }
         
-        // Fechar modal
         function fecharModalOrcamento() {
             document.getElementById('modal-orcamento').style.display = 'none';
         }
         
-        // Calcular preço automaticamente
         function calcularPrecoOrcamento() {
             var pontos = parseInt(document.getElementById('orcamento-pontos').value) || 0;
             var clienteId = document.getElementById('orcamento-cliente-id').value;
             
             if (pontos > 0) {
-                // Chamar AJAX para calcular preço
                 jQuery.ajax({
                     url: bordados_ajax.ajax_url,
                     type: 'POST',
@@ -187,7 +275,6 @@ class Bordados_Shortcode_Painel_Revisor {
             }
         }
         
-        // Enviar orçamento
         document.getElementById('form-orcamento').addEventListener('submit', function(e) {
             e.preventDefault();
             
@@ -225,6 +312,95 @@ class Bordados_Shortcode_Painel_Revisor {
                 }
             });
         });
+        
+        // ========================================
+        // MODAL DE SOLICITAR ACERTOS (NOVO)
+        // ========================================
+        function solicitarAcertos(pedidoId) {
+            document.getElementById('acertos-pedido-id').value = pedidoId;
+            document.getElementById('acertos-info').innerHTML = '<strong>Pedido #' + pedidoId + '</strong><br>Descreva os problemas encontrados e anexe imagens se necessário.';
+            document.getElementById('acertos-descricao').value = '';
+            
+            // Reset uploads
+            var items = document.querySelectorAll('#uploads-acertos-container .upload-acertos-item');
+            items.forEach(function(item, index) {
+                var input = item.querySelector('input[type="file"]');
+                input.value = '';
+                if (index > 0) item.style.display = 'none';
+            });
+            document.getElementById('btn-add-upload-acertos').style.display = 'inline-block';
+            
+            document.getElementById('modal-acertos').style.display = 'block';
+        }
+        
+        function fecharModalAcertos() {
+            document.getElementById('modal-acertos').style.display = 'none';
+        }
+        
+        function adicionarUploadAcertos() {
+            var items = document.querySelectorAll('#uploads-acertos-container .upload-acertos-item');
+            for (var i = 0; i < items.length; i++) {
+                if (items[i].style.display === 'none') {
+                    items[i].style.display = 'block';
+                    if (i === items.length - 1) {
+                        document.getElementById('btn-add-upload-acertos').style.display = 'none';
+                    }
+                    break;
+                }
+            }
+        }
+        
+        function removerUploadAcertos(btn) {
+            var item = btn.parentNode;
+            var input = item.querySelector('input[type="file"]');
+            input.value = '';
+            item.style.display = 'none';
+            document.getElementById('btn-add-upload-acertos').style.display = 'inline-block';
+        }
+        
+        document.getElementById('form-acertos').addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            var descricao = document.getElementById('acertos-descricao').value.trim();
+            if (!descricao) {
+                alert('Por favor, descreva os acertos necessários.');
+                return;
+            }
+            
+            var formData = new FormData(this);
+            formData.append('action', 'solicitar_acertos_revisor');
+            formData.append('nonce', bordados_ajax.nonce);
+            
+            // Mostrar loading
+            var btnSubmit = this.querySelector('button[type="submit"]');
+            var textoOriginal = btnSubmit.innerHTML;
+            btnSubmit.disabled = true;
+            btnSubmit.innerHTML = '⏳ Enviando...';
+            
+            jQuery.ajax({
+                url: bordados_ajax.ajax_url,
+                type: 'POST',
+                data: formData,
+                processData: false,
+                contentType: false,
+                success: function(response) {
+                    btnSubmit.disabled = false;
+                    btnSubmit.innerHTML = textoOriginal;
+                    
+                    if (response.success) {
+                        alert('✅ ' + response.data);
+                        location.reload();
+                    } else {
+                        alert('❌ Erro: ' + response.data);
+                    }
+                },
+                error: function() {
+                    btnSubmit.disabled = false;
+                    btnSubmit.innerHTML = textoOriginal;
+                    alert('❌ Erro de conexão. Tente novamente.');
+                }
+            });
+        });
         </script>
         
         <!-- Modal para aprovação do revisor -->
@@ -258,7 +434,7 @@ class Bordados_Shortcode_Painel_Revisor {
                         <label><strong>📎 Enviar Arquivos Revisados (opcional):</strong></label>
                         <p style="margin: 5px 0 10px 0; font-size: 13px; color: #666;">
                             Se você fez alterações nos arquivos, envie as versões revisadas aqui. 
-                            The original files from the digitizer will be kept as backup.
+                            Os arquivos originais do programador serão mantidos como backup.
                         </p>
                         
                         <div id="uploads-aprovacao-container">
@@ -266,42 +442,42 @@ class Bordados_Shortcode_Painel_Revisor {
                                 <input type="file" name="arquivos_revisados[]" 
                                        accept=".emb,.dst,.exp,.pes,.vp3,.jef,.pdf,.jpg,.jpeg,.png" 
                                        style="width: 80%;">
-                                <small>File 1</small>
+                                <small>Arquivo 1</small>
                             </div>
                             <div class="upload-aprovacao-item" style="display: none; margin-bottom: 10px;">
                                 <input type="file" name="arquivos_revisados[]" 
                                        accept=".emb,.dst,.exp,.pes,.vp3,.jef,.pdf,.jpg,.jpeg,.png" 
                                        style="width: 70%;">
                                 <button type="button" onclick="removerUploadAprovacao(this)" class="button-small" style="margin-left: 5px;">✕</button>
-                                <small>File 2</small>
+                                <small>Arquivo 2</small>
                             </div>
                             <div class="upload-aprovacao-item" style="display: none; margin-bottom: 10px;">
                                 <input type="file" name="arquivos_revisados[]" 
                                        accept=".emb,.dst,.exp,.pes,.vp3,.jef,.pdf,.jpg,.jpeg,.png" 
                                        style="width: 70%;">
                                 <button type="button" onclick="removerUploadAprovacao(this)" class="button-small" style="margin-left: 5px;">✕</button>
-                                <small>File 3</small>
+                                <small>Arquivo 3</small>
                             </div>
                         </div>
                         <button type="button" onclick="adicionarUploadAprovacao()" class="button button-small" id="btn-add-upload-aprovacao">
-                            ➕ Add Another File
+                            ➕ Adicionar Outro Arquivo
                         </button>
                     </div>
                     
                     <!-- Observações -->
                     <div style="margin-bottom: 20px;">
-                        <label><strong>📝 Reviewer Notes (optional):</strong></label>
+                        <label><strong>📝 Observações do Revisor (opcional):</strong></label>
                         <textarea id="aprovacao-obs" name="obs_revisor_aprovacao" rows="3" 
-                                  placeholder="Any notes about this approval or changes made..."
+                                  placeholder="Observações sobre esta aprovação ou alterações feitas..."
                                   style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 5px;"></textarea>
                     </div>
                     
                     <div style="text-align: center; margin-top: 20px;">
                         <button type="submit" class="button button-primary" style="background: #28a745; border-color: #28a745; padding: 12px 30px; font-size: 16px;">
-                            ✅ Approve & Deliver to Customer
+                            ✅ Aprovar e Entregar ao Cliente
                         </button>
                         <button type="button" onclick="fecharModalAprovacao()" class="button" style="margin-left: 10px; padding: 12px 20px;">
-                            ✕ Cancel
+                            ✕ Cancelar
                         </button>
                     </div>
                 </form>
@@ -309,14 +485,16 @@ class Bordados_Shortcode_Painel_Revisor {
         </div>
         
         <script>
-        // Abrir modal de aprovação - COM CÁLCULO AUTOMÁTICO DE PREÇO
+        // ========================================
+        // MODAL DE APROVAÇÃO
+        // ========================================
         function abrirModalAprovacao(pedidoId, nomeBordado, clienteNome, precoProgramador, clienteId, numeroPontos) {
             document.getElementById('aprovacao-pedido-id').value = pedidoId;
             document.getElementById('aprovacao-info').innerHTML = 
                 '<strong>Pedido #' + pedidoId + ':</strong> ' + nomeBordado + '<br>' +
                 '<strong>Cliente:</strong> ' + clienteNome;
             document.getElementById('aprovacao-preco-programador').value = precoProgramador ? 'R$ ' + parseFloat(precoProgramador).toFixed(2) : 'Não definido';
-            document.getElementById('aprovacao-preco-final').value = ''; // Limpar - será calculado
+            document.getElementById('aprovacao-preco-final').value = '';
             document.getElementById('aprovacao-obs').value = '';
             
             // Reset uploads
@@ -348,31 +526,25 @@ class Bordados_Shortcode_Painel_Revisor {
                         if (response.success && response.data.preco_final) {
                             document.getElementById('aprovacao-preco-final').value = response.data.preco_final;
                             document.getElementById('aprovacao-preco-final').placeholder = 'Calculado: R$ ' + response.data.preco_final;
-                            console.log('✅ Preço calculado: R$' + response.data.preco_final + ' (' + response.data.detalhes + ')');
                         } else {
-                            // Se não conseguiu calcular, usar preço do programador como fallback
                             document.getElementById('aprovacao-preco-final').value = precoProgramador || '';
                             document.getElementById('aprovacao-preco-final').placeholder = 'Informe o preço manualmente';
                         }
                     },
                     error: function() {
-                        // Fallback para preço do programador
                         document.getElementById('aprovacao-preco-final').value = precoProgramador || '';
                         document.getElementById('aprovacao-preco-final').placeholder = 'Informe o preço manualmente';
                     }
                 });
             } else {
-                // Sem dados para calcular, usar preço do programador
                 document.getElementById('aprovacao-preco-final').value = precoProgramador || '';
             }
         }
         
-        // Fechar modal de aprovação
         function fecharModalAprovacao() {
             document.getElementById('modal-aprovacao').style.display = 'none';
         }
         
-        // Adicionar campo de upload
         function adicionarUploadAprovacao() {
             var items = document.querySelectorAll('#uploads-aprovacao-container .upload-aprovacao-item');
             for (var i = 0; i < items.length; i++) {
@@ -386,7 +558,6 @@ class Bordados_Shortcode_Painel_Revisor {
             }
         }
         
-        // Remover campo de upload
         function removerUploadAprovacao(btn) {
             var item = btn.parentNode;
             var input = item.querySelector('input[type="file"]');
@@ -395,7 +566,6 @@ class Bordados_Shortcode_Painel_Revisor {
             document.getElementById('btn-add-upload-aprovacao').style.display = 'inline-block';
         }
         
-        // Submit do formulário de aprovação
         document.getElementById('form-aprovacao').addEventListener('submit', function(e) {
             e.preventDefault();
             
@@ -403,11 +573,10 @@ class Bordados_Shortcode_Painel_Revisor {
             formData.append('action', 'aprovar_trabalho_revisor');
             formData.append('nonce', bordados_ajax.nonce);
             
-            // Mostrar loading
-            if (typeof window.BordadosToast !== 'undefined') {
-                window.BordadosToast.clear();
-                window.BordadosToast.info('Processing approval...', 'Please wait', { duration: 0 });
-            }
+            var btnSubmit = this.querySelector('button[type="submit"]');
+            var textoOriginal = btnSubmit.innerHTML;
+            btnSubmit.disabled = true;
+            btnSubmit.innerHTML = '⏳ Processando...';
             
             jQuery.ajax({
                 url: bordados_ajax.ajax_url,
@@ -416,35 +585,51 @@ class Bordados_Shortcode_Painel_Revisor {
                 processData: false,
                 contentType: false,
                 success: function(response) {
-                    if (typeof window.BordadosToast !== 'undefined') {
-                        window.BordadosToast.clear();
-                    }
+                    btnSubmit.disabled = false;
+                    btnSubmit.innerHTML = textoOriginal;
                     
                     if (response.success) {
-                        if (typeof window.BordadosToast !== 'undefined') {
-                            window.BordadosToast.success(response.data, 'Approved!');
-                        } else {
-                            alert('✅ ' + response.data);
-                        }
-                        setTimeout(function() { location.reload(); }, 2000);
+                        alert('✅ ' + response.data);
+                        location.reload();
                     } else {
-                        if (typeof window.BordadosToast !== 'undefined') {
-                            window.BordadosToast.error(response.data, 'Error');
-                        } else {
-                            alert('❌ Error: ' + response.data);
-                        }
+                        alert('❌ Erro: ' + response.data);
                     }
                 },
                 error: function() {
-                    if (typeof window.BordadosToast !== 'undefined') {
-                        window.BordadosToast.clear();
-                        window.BordadosToast.error('Connection error. Try again.', 'Error');
-                    } else {
-                        alert('❌ Connection error. Try again.');
-                    }
+                    btnSubmit.disabled = false;
+                    btnSubmit.innerHTML = textoOriginal;
+                    alert('❌ Erro de conexão. Tente novamente.');
                 }
             });
         });
+        
+        // ========================================
+        // FUNÇÕES AUXILIARES
+        // ========================================
+        function iniciarRevisao(pedidoId) {
+            if (!confirm('Iniciar revisão deste trabalho?')) return;
+            
+            jQuery.ajax({
+                url: bordados_ajax.ajax_url,
+                type: 'POST',
+                data: {
+                    action: 'iniciar_revisao',
+                    nonce: bordados_ajax.nonce,
+                    pedido_id: pedidoId
+                },
+                success: function(response) {
+                    if (response.success) {
+                        alert('✅ Revisão iniciada!');
+                        location.reload();
+                    } else {
+                        alert('❌ Erro: ' + response.data);
+                    }
+                },
+                error: function() {
+                    alert('❌ Erro de conexão.');
+                }
+            });
+        }
         </script>
         <?php
         return ob_get_clean();
