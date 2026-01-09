@@ -519,8 +519,11 @@ class Bordados_Ajax_Assistente {
             return;
         }
         
+        global $wpdb;
+        $tabela = 'pedidos_basicos';
+        
         // Buscar pedido atual
-        $pedido_atual = Bordados_Database::buscar_pedido($pedido_id);
+        $pedido_atual = $wpdb->get_row($wpdb->prepare("SELECT * FROM $tabela WHERE id = %d", $pedido_id));
         
         if (!$pedido_atual) {
             wp_send_json_error('Pedido não encontrado.');
@@ -552,16 +555,22 @@ class Bordados_Ajax_Assistente {
                 $formatos[] = '%s';
             }
         } elseif ($programador_id == 0 && !empty($pedido_atual->programador_id)) {
-            // Removendo programador
+            // Removendo programador - usar NULL
             $dados['programador_id'] = null;
             $formatos[] = '%d';
         }
         
-        // Atualizar
-        $resultado = Bordados_Database::atualizar_pedido($pedido_id, $dados, $formatos);
+        // Atualizar usando $wpdb diretamente
+        $resultado = $wpdb->update(
+            $tabela,
+            $dados,
+            array('id' => $pedido_id),
+            $formatos,
+            array('%d')
+        );
         
         if ($resultado === false) {
-            wp_send_json_error('Erro ao atualizar pedido.');
+            wp_send_json_error('Erro ao atualizar pedido: ' . $wpdb->last_error);
             return;
         }
         
