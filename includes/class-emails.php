@@ -2,7 +2,10 @@
 /**
  * Classe para gerenciar envio de emails
  * 
- * ATUALIZADO: Funções para orçamentos (Etapa 3)
+ * ATUALIZADO: 
+ * - Funções para orçamentos (Etapa 3)
+ * - Suporte a CC para email_secundario (2026-01-09)
+ * - Suporte a múltiplos emails separados por vírgula no campo secundário
  */
 
 if (!defined('ABSPATH')) {
@@ -12,7 +15,58 @@ if (!defined('ABSPATH')) {
 class Bordados_Emails {
     
     /**
+     * ========================================
+     * FUNÇÃO AUXILIAR: Obter headers com CC
+     * ========================================
+     * 
+     * Busca o email_secundario do cliente e adiciona como CC.
+     * Suporta múltiplos emails separados por vírgula.
+     * 
+     * @param int $cliente_id ID do cliente
+     * @param string $from_name Nome do remetente
+     * @param string $from_email Email do remetente (opcional)
+     * @return array Headers para wp_mail()
+     */
+    private static function get_headers_com_cc($cliente_id, $from_name = 'Puncher Digitizing', $from_email = null) {
+        // Email do remetente
+        if (empty($from_email)) {
+            $from_email = 'noreply@' . $_SERVER['HTTP_HOST'];
+        }
+        
+        // Headers básicos
+        $headers = array(
+            'Content-Type: text/html; charset=UTF-8',
+            'From: ' . $from_name . ' <' . $from_email . '>'
+        );
+        
+        // Buscar email secundário do cliente
+        $email_secundario = get_user_meta($cliente_id, 'email_secundario', true);
+        
+        if (!empty($email_secundario)) {
+            // Suporta múltiplos emails separados por vírgula
+            $emails_cc = array_map('trim', explode(',', $email_secundario));
+            
+            // Filtrar apenas emails válidos
+            $emails_validos = array();
+            foreach ($emails_cc as $email) {
+                if (is_email($email)) {
+                    $emails_validos[] = $email;
+                }
+            }
+            
+            // Adicionar CC se houver emails válidos
+            if (!empty($emails_validos)) {
+                $headers[] = 'Cc: ' . implode(', ', $emails_validos);
+                error_log("📧 CC adicionado para cliente #{$cliente_id}: " . implode(', ', $emails_validos));
+            }
+        }
+        
+        return $headers;
+    }
+    
+    /**
      * Enviar email para programador sobre novo trabalho
+     * (Programador não precisa de CC - é email interno)
      */
     public static function enviar_novo_trabalho($programador_id, $pedido_id, $dados_pedido) {
         $programador = get_userdata($programador_id);
@@ -29,7 +83,7 @@ class Bordados_Emails {
         // Montar mensagem
         $mensagem = self::template_novo_trabalho($programador, $cliente, $pedido_id, $dados_pedido);
         
-        // Headers para HTML
+        // Headers para HTML (sem CC - email interno)
         $headers = array(
             'Content-Type: text/html; charset=UTF-8',
             'From: Sistema Bordados <noreply@' . $_SERVER['HTTP_HOST'] . '>'
@@ -41,6 +95,7 @@ class Bordados_Emails {
     
     /**
      * Enviar email para cliente quando produção for iniciada
+     * ✅ COM SUPORTE A CC
      */
     public static function enviar_producao_iniciada($pedido) {
         if (!$pedido || empty($pedido->cliente_email)) {
@@ -54,18 +109,24 @@ class Bordados_Emails {
         // Montar mensagem
         $mensagem = self::template_producao_iniciada($pedido);
         
-        // Headers para HTML
-        $headers = array(
-            'Content-Type: text/html; charset=UTF-8',
-            'From: Puncher Digitizing <noreply@' . $_SERVER['HTTP_HOST'] . '>'
-        );
+        // ✅ Headers COM CC para emails secundários
+        $headers = self::get_headers_com_cc($pedido->cliente_id, 'Puncher Digitizing');
         
         // Enviar email
-        return wp_mail($para, $assunto, $mensagem, $headers);
+        $enviado = wp_mail($para, $assunto, $mensagem, $headers);
+        
+        if ($enviado) {
+            error_log("✅ Email 'produção iniciada' enviado para {$para} (pedido #{$pedido->id})");
+        } else {
+            error_log("❌ Falha ao enviar email 'produção iniciada' para {$para}");
+        }
+        
+        return $enviado;
     }
     
     /**
      * Enviar email para cliente quando trabalho for concluído
+     * ✅ COM SUPORTE A CC
      */
     public static function enviar_trabalho_concluido($pedido, $arquivos_finais) {
         $cliente = get_userdata($pedido->cliente_id);
@@ -81,18 +142,24 @@ class Bordados_Emails {
         // Montar mensagem
         $mensagem = self::template_trabalho_concluido($pedido, $cliente, $arquivos_finais);
         
-        // Headers para HTML
-        $headers = array(
-            'Content-Type: text/html; charset=UTF-8',
-            'From: Puncher Digitizing <noreply@' . $_SERVER['HTTP_HOST'] . '>'
-        );
+        // ✅ Headers COM CC para emails secundários
+        $headers = self::get_headers_com_cc($pedido->cliente_id, 'Puncher Digitizing');
         
         // Enviar email
-        return wp_mail($para, $assunto, $mensagem, $headers);
+        $enviado = wp_mail($para, $assunto, $mensagem, $headers);
+        
+        if ($enviado) {
+            error_log("✅ Email 'trabalho concluído' enviado para {$para} (pedido #{$pedido->id})");
+        } else {
+            error_log("❌ Falha ao enviar email 'trabalho concluído' para {$para}");
+        }
+        
+        return $enviado;
     }
     
     /**
      * ⭐ ETAPA 3: Enviar orçamento para cliente
+     * ✅ COM SUPORTE A CC
      */
     public static function enviar_orcamento_cliente($pedido_id, $dados_orcamento) {
         $pedido = Bordados_Database::buscar_pedido_completo($pedido_id);
@@ -115,17 +182,14 @@ class Bordados_Emails {
         // Montar mensagem
         $mensagem = self::template_orcamento_cliente($pedido, $cliente, $dados_orcamento);
         
-        // Headers para HTML
-        $headers = array(
-            'Content-Type: text/html; charset=UTF-8',
-            'From: Puncher Embroidery <noreply@puncher.com>'
-        );
+        // ✅ Headers COM CC para emails secundários
+        $headers = self::get_headers_com_cc($pedido->cliente_id, 'Puncher Embroidery', 'noreply@puncher.com');
         
         // Enviar email
         $enviado = wp_mail($para, $assunto, $mensagem, $headers);
         
         if ($enviado) {
-            error_log("✅ Email de orçamento enviado para {$cliente->user_email}");
+            error_log("✅ Email de orçamento enviado para {$cliente->user_email} (pedido #{$pedido_id})");
         } else {
             error_log("❌ Falha ao enviar email de orçamento para {$cliente->user_email}");
         }
@@ -135,6 +199,7 @@ class Bordados_Emails {
     
     /**
      * ⭐ ETAPA 3: Notificar admin quando orçamento for aprovado
+     * (Sem CC - email para admin)
      */
     public static function notificar_orcamento_aprovado($pedido_id) {
         $pedido = Bordados_Database::buscar_pedido_completo($pedido_id);
@@ -152,7 +217,7 @@ class Bordados_Emails {
         // Montar mensagem
         $mensagem = self::template_orcamento_aprovado($pedido, $cliente);
         
-        // Headers para HTML
+        // Headers para HTML (sem CC - email interno)
         $headers = array(
             'Content-Type: text/html; charset=UTF-8',
             'From: Puncher System <noreply@puncher.com>'
@@ -169,11 +234,117 @@ class Bordados_Emails {
     }
     
     /**
+     * Notificar programador sobre novo trabalho atribuído
+     * (Sem CC - email interno)
+     */
+    public static function notificar_programador_novo_trabalho($pedido_id) {
+        global $wpdb;
+        
+        $pedido = $wpdb->get_row($wpdb->prepare(
+            "SELECT p.*, c.display_name as cliente_nome 
+             FROM pedidos_basicos p 
+             LEFT JOIN {$wpdb->users} c ON p.cliente_id = c.ID 
+             WHERE p.id = %d",
+            $pedido_id
+        ));
+        
+        if (!$pedido || empty($pedido->programador_id)) {
+            return false;
+        }
+        
+        $programador = get_userdata($pedido->programador_id);
+        if (!$programador) {
+            return false;
+        }
+        
+        $para = $programador->user_email;
+        $assunto = 'New Work Assigned - Order #' . $pedido_id;
+        
+        $mensagem = "
+        <h2>🎉 New Work Assigned!</h2>
+        <p>Hello <strong>{$programador->display_name}</strong>,</p>
+        <p>A new embroidery order has been assigned to you:</p>
+        <table style='border-collapse: collapse; width: 100%; margin: 20px 0;'>
+            <tr>
+                <td style='border: 1px solid #ddd; padding: 8px; background: #f8f9fa;'><strong>Order:</strong></td>
+                <td style='border: 1px solid #ddd; padding: 8px;'>#{$pedido->id}</td>
+            </tr>
+            <tr>
+                <td style='border: 1px solid #ddd; padding: 8px; background: #f8f9fa;'><strong>Client:</strong></td>
+                <td style='border: 1px solid #ddd; padding: 8px;'>{$pedido->cliente_nome}</td>
+            </tr>
+            <tr>
+                <td style='border: 1px solid #ddd; padding: 8px; background: #f8f9fa;'><strong>Design:</strong></td>
+                <td style='border: 1px solid #ddd; padding: 8px;'>{$pedido->nome_bordado}</td>
+            </tr>
+        </table>
+        <p><a href='" . site_url('/painel-programador/') . "' style='background: #0073aa; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;'>View My Work</a></p>
+        <p>Best regards,<br>Puncher Digitizing System</p>
+        ";
+        
+        $headers = array(
+            'Content-Type: text/html; charset=UTF-8',
+            'From: Puncher System <noreply@puncher.com>'
+        );
+        
+        return wp_mail($para, $assunto, $mensagem, $headers);
+    }
+    
+    /**
+     * Enviar notificação de atribuição (alias)
+     */
+    public static function enviar_notificacao_atribuicao($pedido_id, $programador_id) {
+        return self::notificar_programador_novo_trabalho($pedido_id);
+    }
+    
+    /**
+     * Enviar email de novo trabalho (alias)
+     */
+    public static function enviar_email_novo_trabalho($email, $nome, $dados) {
+        $assunto = 'New Work Assigned - Order #' . $dados['pedido_id'];
+        
+        $mensagem = "
+        <h2>🎉 New Work Assigned!</h2>
+        <p>Hello <strong>{$nome}</strong>,</p>
+        <p>A new embroidery order has been assigned to you:</p>
+        <table style='border-collapse: collapse; width: 100%; margin: 20px 0;'>
+            <tr>
+                <td style='border: 1px solid #ddd; padding: 8px; background: #f8f9fa;'><strong>Order:</strong></td>
+                <td style='border: 1px solid #ddd; padding: 8px;'>#{$dados['pedido_id']}</td>
+            </tr>
+            <tr>
+                <td style='border: 1px solid #ddd; padding: 8px; background: #f8f9fa;'><strong>Client:</strong></td>
+                <td style='border: 1px solid #ddd; padding: 8px;'>{$dados['cliente_nome']}</td>
+            </tr>
+            <tr>
+                <td style='border: 1px solid #ddd; padding: 8px; background: #f8f9fa;'><strong>Design:</strong></td>
+                <td style='border: 1px solid #ddd; padding: 8px;'>{$dados['nome_bordado']}</td>
+            </tr>
+        </table>
+        <p><strong>Notes:</strong><br>{$dados['observacoes']}</p>
+        <p><a href='" . site_url('/painel-programador/') . "' style='background: #0073aa; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;'>View My Work</a></p>
+        <p>Best regards,<br>Puncher Digitizing System</p>
+        ";
+        
+        $headers = array(
+            'Content-Type: text/html; charset=UTF-8',
+            'From: Puncher System <noreply@puncher.com>'
+        );
+        
+        return wp_mail($email, $assunto, $mensagem, $headers);
+    }
+    
+    // ========================================
+    // TEMPLATES DE EMAIL
+    // ========================================
+    
+    /**
      * Template: Email novo trabalho
      */
     private static function template_novo_trabalho($programador, $cliente, $pedido_id, $dados_pedido) {
         $cores = isset($dados_pedido['cores']) ? $dados_pedido['cores'] : '';
         $observacoes = isset($dados_pedido['observacoes']) ? $dados_pedido['observacoes'] : '';
+        $tamanho = isset($dados_pedido['tamanho']) ? $dados_pedido['tamanho'] : '';
         
         return "
         <h2>New Work Assigned</h2>
@@ -197,7 +368,7 @@ class Bordados_Emails {
             </tr>
             <tr>
                 <td style='border: 1px solid #ddd; padding: 8px;'><strong>Size:</strong></td>
-                <td style='border: 1px solid #ddd; padding: 8px;'>{$dados_pedido['tamanho']}</td>
+                <td style='border: 1px solid #ddd; padding: 8px;'>{$tamanho}</td>
             </tr>
             <tr>
                 <td style='border: 1px solid #ddd; padding: 8px;'><strong>Colors:</strong></td>
@@ -219,6 +390,16 @@ class Bordados_Emails {
      * Template: Email produção iniciada
      */
     private static function template_producao_iniciada($pedido) {
+        $tamanho = '';
+        if (!empty($pedido->largura) && !empty($pedido->altura)) {
+            $unidade = !empty($pedido->unidade_medida) ? $pedido->unidade_medida : 'cm';
+            $tamanho = $pedido->largura . ' x ' . $pedido->altura . ' ' . $unidade;
+        } elseif (!empty($pedido->tamanho)) {
+            $tamanho = $pedido->tamanho;
+        }
+        
+        $programador_nome = !empty($pedido->programador_nome) ? $pedido->programador_nome : 'Our digitizer';
+        
         return "
         <h2>🎉 Your embroidery is now in production!</h2>
         
@@ -237,7 +418,7 @@ class Bordados_Emails {
             </tr>
             <tr>
                 <td style='border: 1px solid #ddd; padding: 8px; background: #f8f9fa;'><strong>Size:</strong></td>
-                <td style='border: 1px solid #ddd; padding: 8px;'>{$pedido->tamanho}</td>
+                <td style='border: 1px solid #ddd; padding: 8px;'>{$tamanho}</td>
             </tr>
             <tr>
                 <td style='border: 1px solid #ddd; padding: 8px; background: #f8f9fa;'><strong>Status:</strong></td>
@@ -245,7 +426,7 @@ class Bordados_Emails {
             </tr>
             <tr>
                 <td style='border: 1px solid #ddd; padding: 8px; background: #f8f9fa;'><strong>Digitizer:</strong></td>
-                <td style='border: 1px solid #ddd; padding: 8px;'>{$pedido->programador_nome}</td>
+                <td style='border: 1px solid #ddd; padding: 8px;'>{$programador_nome}</td>
             </tr>
         </table>
         
@@ -278,16 +459,18 @@ class Bordados_Emails {
     private static function template_trabalho_concluido($pedido, $cliente, $arquivos_finais) {
         // Lista de arquivos para download
         $lista_arquivos = '';
-        foreach ($arquivos_finais as $index => $arquivo) {
-            $nome_arquivo = basename($arquivo);
-            $arquivo_https = Bordados_Helpers::forcar_https($arquivo);
-            $lista_arquivos .= '<li><a href="' . esc_url($arquivo_https) . '" target="_blank">📎 ' . $nome_arquivo . '</a></li>';
+        if (is_array($arquivos_finais) && !empty($arquivos_finais)) {
+            foreach ($arquivos_finais as $index => $arquivo) {
+                $nome_arquivo = basename($arquivo);
+                $arquivo_https = Bordados_Helpers::forcar_https($arquivo);
+                $lista_arquivos .= '<li><a href="' . esc_url($arquivo_https) . '" target="_blank">📎 ' . $nome_arquivo . '</a></li>';
+            }
         }
         
         $observacoes_prog = !empty($pedido->observacoes_programador) ? $pedido->observacoes_programador : '';
         
         // Usar preco_final se disponível, senão usar preco_programador
-        $preco_exibir = !empty($pedido->preco_final) ? $pedido->preco_final : $pedido->preco_programador;
+        $preco_exibir = !empty($pedido->preco_final) ? $pedido->preco_final : (!empty($pedido->preco_programador) ? $pedido->preco_programador : 0);
         
         return "
         <h2>🎉 Your embroidery is ready!</h2>
@@ -315,28 +498,30 @@ class Bordados_Emails {
             </tr>
         </table>
         
-        <div style='background: #e8f5e8; padding: 15px; border-radius: 5px; margin: 20px 0;'>
-            <h3 style='margin: 0 0 10px 0; color: #388e3c;'>📁 Files for Download:</h3>
+        " . (!empty($lista_arquivos) ? "
+        <div style='background: #e8f5e9; padding: 15px; border-radius: 5px; margin: 20px 0;'>
+            <h3 style='margin: 0 0 10px 0; color: #2e7d32;'>📥 Download Files:</h3>
             <ul style='margin: 0; padding-left: 20px;'>
                 {$lista_arquivos}
             </ul>
         </div>
+        " : "") . "
         
         " . (!empty($observacoes_prog) ? "
-        <div style='background: #f8f9fa; padding: 15px; border-radius: 5px; margin: 20px 0;'>
-            <h4 style='margin: 0 0 10px 0;'>💬 Digitizer Notes:</h4>
+        <div style='background: #fff3e0; padding: 15px; border-radius: 5px; margin: 20px 0;'>
+            <h3 style='margin: 0 0 10px 0; color: #e65100;'>💬 Digitizer Notes:</h3>
             <p style='margin: 0;'>{$observacoes_prog}</p>
         </div>
         " : "") . "
         
         <p style='text-align: center; margin: 30px 0;'>
             <a href='" . site_url('/meus-pedidos/') . "' 
-               style='background: #0073aa; color: white; padding: 15px 30px; text-decoration: none; border-radius: 5px; font-weight: bold;'>
-               📥 View All My Orders
+               style='background: #4caf50; color: white; padding: 15px 30px; text-decoration: none; border-radius: 5px; font-weight: bold;'>
+               📥 Go to My Orders
             </a>
         </p>
         
-        <p>Thank you for your business!</p>
+        <p>Thank you for choosing Puncher Digitizing!</p>
         
         <p>Best regards,<br>
         <strong>Puncher Digitizing Team</strong></p>
@@ -344,145 +529,94 @@ class Bordados_Emails {
     }
     
     /**
-     * ⭐ ETAPA 3: Template - Orçamento enviado para cliente
+     * Template: Email orçamento para cliente
      */
     private static function template_orcamento_cliente($pedido, $cliente, $dados_orcamento) {
-        $numero_pontos = isset($dados_orcamento['numero_pontos']) ? number_format($dados_orcamento['numero_pontos']) : '0';
-        $preco_final = isset($dados_orcamento['preco_final']) ? number_format($dados_orcamento['preco_final'], 2) : '0.00';
-        $obs_revisor = isset($dados_orcamento['obs_revisor']) ? $dados_orcamento['obs_revisor'] : '';
-        
-        $tipo_produto = $pedido->tipo_produto == 'vetor' ? 'Vector Art' : 'Embroidery Digitizing';
-        
-        // Formatar dimensões
-        $dimensoes = '';
-        if (!empty($pedido->largura) || !empty($pedido->altura)) {
-            $largura = !empty($pedido->largura) ? $pedido->largura : '?';
-            $altura = !empty($pedido->altura) ? $pedido->altura : '?';
-            $unidade = !empty($pedido->unidade_medida) ? $pedido->unidade_medida : 'cm';
-            $dimensoes = "{$largura} x {$altura} {$unidade}";
-        }
+        $preco = isset($dados_orcamento['preco']) ? number_format($dados_orcamento['preco'], 2) : '0.00';
+        $pontos = isset($dados_orcamento['pontos']) ? number_format($dados_orcamento['pontos']) : '0';
+        $observacoes = isset($dados_orcamento['observacoes']) ? $dados_orcamento['observacoes'] : '';
         
         return "
-        <div style='font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;'>
-            <h2 style='color: #333;'>💰 Your Quote is Ready!</h2>
-            
-            <p>Hello <strong>{$cliente->display_name}</strong>,</p>
-            
-            <p>We have reviewed your order and prepared a quote for you:</p>
-            
-            <table style='border-collapse: collapse; width: 100%; margin: 20px 0;'>
-                <tr>
-                    <td style='border: 1px solid #ddd; padding: 10px; background: #f8f9fa;'><strong>Order:</strong></td>
-                    <td style='border: 1px solid #ddd; padding: 10px;'>#{$pedido->id}</td>
-                </tr>
-                <tr>
-                    <td style='border: 1px solid #ddd; padding: 10px; background: #f8f9fa;'><strong>Design Name:</strong></td>
-                    <td style='border: 1px solid #ddd; padding: 10px;'>{$pedido->nome_bordado}</td>
-                </tr>
-                <tr>
-                    <td style='border: 1px solid #ddd; padding: 10px; background: #f8f9fa;'><strong>Service Type:</strong></td>
-                    <td style='border: 1px solid #ddd; padding: 10px;'>{$tipo_produto}</td>
-                </tr>
-                " . (!empty($dimensoes) ? "
-                <tr>
-                    <td style='border: 1px solid #ddd; padding: 10px; background: #f8f9fa;'><strong>Dimensions:</strong></td>
-                    <td style='border: 1px solid #ddd; padding: 10px;'>{$dimensoes}</td>
-                </tr>
-                " : "") . "
-                <tr>
-                    <td style='border: 1px solid #ddd; padding: 10px; background: #f8f9fa;'><strong>Estimated Stitches:</strong></td>
-                    <td style='border: 1px solid #ddd; padding: 10px;'>{$numero_pontos}</td>
-                </tr>
-            </table>
-            
-            <div style='background: #d4edda; padding: 20px; border-radius: 8px; margin: 25px 0; text-align: center;'>
-                <p style='margin: 0 0 5px 0; font-size: 14px; color: #155724;'>YOUR QUOTE</p>
-                <p style='margin: 0; font-size: 36px; font-weight: bold; color: #28a745;'>\${$preco_final}</p>
-            </div>
-            
-            " . (!empty($obs_revisor) ? "
-            <div style='background: #fff3cd; padding: 15px; border-radius: 5px; margin: 20px 0; border-left: 4px solid #ffc107;'>
-                <h4 style='margin: 0 0 8px 0; color: #856404;'>📝 Notes from our team:</h4>
-                <p style='margin: 0; color: #856404;'>{$obs_revisor}</p>
-            </div>
-            " : "") . "
-            
-            <p style='text-align: center; margin: 30px 0;'>
-                <a href='" . site_url('/meus-pedidos/') . "' 
-                   style='background: #28a745; color: white; padding: 15px 40px; text-decoration: none; border-radius: 5px; font-weight: bold; font-size: 16px;'>
-                   ✅ Approve Quote
-                </a>
-            </p>
-            
-            <p style='color: #666; font-size: 13px; text-align: center;'>
-                Click the button above to approve this quote and start production.<br>
-                If you have questions, simply reply to this email.
-            </p>
-            
-            <hr style='border: none; border-top: 1px solid #eee; margin: 30px 0;'>
-            
-            <p>Thank you for choosing Puncher!</p>
-            
-            <p>Best regards,<br>
-            <strong>Puncher Embroidery Team</strong></p>
+        <h2>💰 Quote Ready for Your Order</h2>
+        
+        <p>Hello <strong>{$cliente->display_name}</strong>,</p>
+        
+        <p>We have prepared a quote for your embroidery order:</p>
+        
+        <table style='border-collapse: collapse; width: 100%; margin: 20px 0;'>
+            <tr>
+                <td style='border: 1px solid #ddd; padding: 8px; background: #f8f9fa;'><strong>Order:</strong></td>
+                <td style='border: 1px solid #ddd; padding: 8px;'>#{$pedido->id}</td>
+            </tr>
+            <tr>
+                <td style='border: 1px solid #ddd; padding: 8px; background: #f8f9fa;'><strong>Design:</strong></td>
+                <td style='border: 1px solid #ddd; padding: 8px;'>{$pedido->nome_bordado}</td>
+            </tr>
+            <tr>
+                <td style='border: 1px solid #ddd; padding: 8px; background: #f8f9fa;'><strong>Stitch Count:</strong></td>
+                <td style='border: 1px solid #ddd; padding: 8px;'>{$pontos} stitches</td>
+            </tr>
+            <tr>
+                <td style='border: 1px solid #ddd; padding: 12px; background: #e8f5e9;'><strong style='font-size: 18px;'>Price:</strong></td>
+                <td style='border: 1px solid #ddd; padding: 12px; background: #e8f5e9;'><strong style='font-size: 18px; color: #2e7d32;'>$ {$preco}</strong></td>
+            </tr>
+        </table>
+        
+        " . (!empty($observacoes) ? "
+        <div style='background: #fff3e0; padding: 15px; border-radius: 5px; margin: 20px 0;'>
+            <h3 style='margin: 0 0 10px 0; color: #e65100;'>💬 Notes:</h3>
+            <p style='margin: 0;'>{$observacoes}</p>
         </div>
+        " : "") . "
+        
+        <p style='text-align: center; margin: 30px 0;'>
+            <a href='" . site_url('/meus-pedidos/') . "' 
+               style='background: #4caf50; color: white; padding: 15px 30px; text-decoration: none; border-radius: 5px; font-weight: bold;'>
+               ✅ View & Approve Quote
+            </a>
+        </p>
+        
+        <p>If you have any questions about this quote, please contact us.</p>
+        
+        <p>Best regards,<br>
+        <strong>Puncher Digitizing Team</strong></p>
         ";
     }
     
     /**
-     * ⭐ ETAPA 3: Template - Notificação de orçamento aprovado (para admin)
+     * Template: Notificação de orçamento aprovado (para admin)
      */
     private static function template_orcamento_aprovado($pedido, $cliente) {
-        $preco_final = !empty($pedido->preco_final) ? number_format($pedido->preco_final, 2) : '0.00';
-        $numero_pontos = !empty($pedido->numero_pontos) ? number_format($pedido->numero_pontos) : '0';
+        $cliente_nome = $cliente ? $cliente->display_name : 'Cliente';
+        $cliente_email = $cliente ? $cliente->user_email : 'N/A';
         
         return "
-        <div style='font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;'>
-            <h2 style='color: #28a745;'>✅ Quote Approved!</h2>
-            
-            <p>Good news! A customer has approved their quote:</p>
-            
-            <table style='border-collapse: collapse; width: 100%; margin: 20px 0;'>
-                <tr>
-                    <td style='border: 1px solid #ddd; padding: 10px; background: #f8f9fa;'><strong>Order:</strong></td>
-                    <td style='border: 1px solid #ddd; padding: 10px;'>#{$pedido->id}</td>
-                </tr>
-                <tr>
-                    <td style='border: 1px solid #ddd; padding: 10px; background: #f8f9fa;'><strong>Customer:</strong></td>
-                    <td style='border: 1px solid #ddd; padding: 10px;'>{$cliente->display_name} ({$cliente->user_email})</td>
-                </tr>
-                <tr>
-                    <td style='border: 1px solid #ddd; padding: 10px; background: #f8f9fa;'><strong>Design:</strong></td>
-                    <td style='border: 1px solid #ddd; padding: 10px;'>{$pedido->nome_bordado}</td>
-                </tr>
-                <tr>
-                    <td style='border: 1px solid #ddd; padding: 10px; background: #f8f9fa;'><strong>Stitches:</strong></td>
-                    <td style='border: 1px solid #ddd; padding: 10px;'>{$numero_pontos}</td>
-                </tr>
-                <tr>
-                    <td style='border: 1px solid #ddd; padding: 10px; background: #d4edda;'><strong>Approved Price:</strong></td>
-                    <td style='border: 1px solid #ddd; padding: 10px; background: #d4edda; font-weight: bold; color: #28a745;'>\${$preco_final}</td>
-                </tr>
-            </table>
-            
-            <div style='background: #e3f2fd; padding: 15px; border-radius: 5px; margin: 20px 0;'>
-                <p style='margin: 0;'>
-                    <strong>📋 Next Step:</strong> This order is now in the queue with status <strong>'novo'</strong>. 
-                    Please assign a digitizer to start production.
-                </p>
-            </div>
-            
-            <p style='text-align: center; margin: 30px 0;'>
-                <a href='" . admin_url('admin.php?page=bordados-dashboard') . "' 
-                   style='background: #0073aa; color: white; padding: 12px 25px; text-decoration: none; border-radius: 5px; font-weight: bold;'>
-                   👨‍💻 Go to Dashboard
-                </a>
-            </p>
-            
-            <p>— Puncher System</p>
-        </div>
+        <h2>✅ Quote Approved!</h2>
+        
+        <p>The client has approved the quote for the following order:</p>
+        
+        <table style='border-collapse: collapse; width: 100%; margin: 20px 0;'>
+            <tr>
+                <td style='border: 1px solid #ddd; padding: 8px; background: #f8f9fa;'><strong>Order:</strong></td>
+                <td style='border: 1px solid #ddd; padding: 8px;'>#{$pedido->id}</td>
+            </tr>
+            <tr>
+                <td style='border: 1px solid #ddd; padding: 8px; background: #f8f9fa;'><strong>Client:</strong></td>
+                <td style='border: 1px solid #ddd; padding: 8px;'>{$cliente_nome} ({$cliente_email})</td>
+            </tr>
+            <tr>
+                <td style='border: 1px solid #ddd; padding: 8px; background: #f8f9fa;'><strong>Design:</strong></td>
+                <td style='border: 1px solid #ddd; padding: 8px;'>{$pedido->nome_bordado}</td>
+            </tr>
+            <tr>
+                <td style='border: 1px solid #ddd; padding: 8px; background: #e8f5e9;'><strong>Approved Price:</strong></td>
+                <td style='border: 1px solid #ddd; padding: 8px; background: #e8f5e9;'><strong>$ " . number_format($pedido->preco_programador, 2) . "</strong></td>
+            </tr>
+        </table>
+        
+        <p>The work can now proceed to production.</p>
+        
+        <p><a href='" . admin_url('admin.php?page=bordados-pedidos') . "' style='background: #0073aa; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;'>View Orders</a></p>
         ";
     }
 }
-
-?>

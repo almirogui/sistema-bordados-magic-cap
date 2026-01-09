@@ -170,7 +170,7 @@ class Bordados_Ajax_Perfil {
         }
         
         // Validar emails secundários
-        if (!empty($_POST['email_secundario']) && !is_email($_POST['email_secundario'])) {
+        if (!empty($_POST['email_secundario']) && !self::validar_emails_multiplos($_POST['email_secundario'])) {
             $erros[] = 'Email secundário inválido';
         }
         
@@ -210,7 +210,7 @@ class Bordados_Ajax_Perfil {
         update_user_meta($user_id, 'last_name', sanitize_text_field($_POST['last_name']));
         update_user_meta($user_id, 'titulo_cliente', sanitize_text_field($_POST['titulo_cliente']));
         update_user_meta($user_id, 'apelido_cliente', sanitize_text_field($_POST['apelido_cliente']));
-        update_user_meta($user_id, 'email_secundario', sanitize_email($_POST['email_secundario']));
+        update_user_meta($user_id, 'email_secundario', sanitize_text_field($_POST['email_secundario']));
         update_user_meta($user_id, 'email_invoice', sanitize_email($_POST['email_invoice']));
         update_user_meta($user_id, 'telefone_whatsapp', sanitize_text_field($_POST['telefone_whatsapp']));
         update_user_meta($user_id, 'cpf_cnpj', sanitize_text_field($_POST['cpf_cnpj']));
@@ -333,6 +333,20 @@ class Bordados_Ajax_Perfil {
         
         return $cnpj[13] == ($resto < 2 ? 0 : 11 - $resto);
     }
+/**
+     * Validar múltiplos emails separados por vírgula
+     */
+    private static function validar_emails_multiplos($emails_string) {
+        if (empty($emails_string)) return true;
+        $emails = array_map('trim', explode(',', $emails_string));
+        foreach ($emails as $email) {
+            if (!empty($email) && !is_email($email)) {
+                return false;
+            }
+        }
+        return true;
+    }
+
 }
 
 // Inicializar

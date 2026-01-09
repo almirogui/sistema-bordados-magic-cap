@@ -90,7 +90,7 @@ class Bordados_Shortcode_Perfil {
                         </div>
                         <div class="form-col">
                             <label for="email_secundario">Secondary Email</label>
-                            <input type="email" id="email_secundario" name="email_secundario" 
+                            <input type="text" id="email_secundario" name="email_secundario" 
                                    value="<?php echo esc_attr($dados['email_secundario']); ?>">
                         </div>
                     </div>
