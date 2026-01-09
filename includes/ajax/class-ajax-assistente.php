@@ -328,10 +328,12 @@ class Bordados_Ajax_Assistente {
                     <td style="padding: 8px; border-bottom: 1px solid #eee;"><strong>Nome do Bordado:</strong></td>
                     <td style="padding: 8px; border-bottom: 1px solid #eee;"><?php echo esc_html($pedido->nome_bordado); ?></td>
                 </tr>
+                <?php if (!empty($pedido->largura) || !empty($pedido->altura)): ?>
                 <tr>
                     <td style="padding: 8px; border-bottom: 1px solid #eee;"><strong>Tamanho:</strong></td>
-                    <td style="padding: 8px; border-bottom: 1px solid #eee;"><?php echo esc_html($pedido->tamanho); ?></td>
+                    <td style="padding: 8px; border-bottom: 1px solid #eee;"><?php echo esc_html($pedido->largura); ?> x <?php echo esc_html($pedido->altura); ?> <?php echo esc_html($pedido->unidade_medida ?: 'cm'); ?></td>
                 </tr>
+                <?php endif; ?>
                 <?php if (!empty($pedido->cores)): ?>
                 <tr>
                     <td style="padding: 8px; border-bottom: 1px solid #eee;"><strong>Cores:</strong></td>
@@ -458,10 +460,17 @@ class Bordados_Ajax_Assistente {
                        style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 5px;">
             </div>
             
-            <div style="margin-bottom: 15px;">
-                <label style="display: block; margin-bottom: 5px; font-weight: 600;">Tamanho</label>
-                <input type="text" name="tamanho" value="<?php echo esc_attr($pedido->tamanho); ?>" required
-                       style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 5px;">
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px;">
+                <div>
+                    <label style="display: block; margin-bottom: 5px; font-weight: 600;">Largura (<?php echo esc_html($pedido->unidade_medida ?: 'cm'); ?>)</label>
+                    <input type="number" step="0.01" name="largura" value="<?php echo esc_attr($pedido->largura); ?>"
+                           style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 5px;">
+                </div>
+                <div>
+                    <label style="display: block; margin-bottom: 5px; font-weight: 600;">Altura (<?php echo esc_html($pedido->unidade_medida ?: 'cm'); ?>)</label>
+                    <input type="number" step="0.01" name="altura" value="<?php echo esc_attr($pedido->altura); ?>"
+                           style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 5px;">
+                </div>
             </div>
             
             <div style="margin-bottom: 15px;">
@@ -530,15 +539,25 @@ class Bordados_Ajax_Assistente {
             return;
         }
         
-        // Preparar dados para atualização
+        // Preparar dados para atualização (usando campos corretos da tabela)
         $dados = array(
             'nome_bordado' => sanitize_text_field($_POST['nome_bordado']),
-            'tamanho'      => sanitize_text_field($_POST['tamanho']),
             'cores'        => sanitize_text_field($_POST['cores']),
             'observacoes'  => sanitize_textarea_field($_POST['observacoes'])
         );
         
-        $formatos = array('%s', '%s', '%s', '%s');
+        $formatos = array('%s', '%s', '%s');
+        
+        // Campos de tamanho (largura/altura) se enviados
+        if (isset($_POST['largura']) && $_POST['largura'] !== '') {
+            $dados['largura'] = floatval($_POST['largura']);
+            $formatos[] = '%f';
+        }
+        
+        if (isset($_POST['altura']) && $_POST['altura'] !== '') {
+            $dados['altura'] = floatval($_POST['altura']);
+            $formatos[] = '%f';
+        }
         
         // Verificar se está mudando programador
         $programador_id = intval($_POST['programador_id']);

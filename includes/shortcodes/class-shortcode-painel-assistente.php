@@ -375,7 +375,9 @@ class Bordados_Shortcode_Painel_Assistente {
             </div>
             
             <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; margin-bottom: 15px; font-size: 13px;">
-                <div><strong>Tamanho:</strong> <?php echo esc_html($pedido->tamanho ?: '-'); ?></div>
+                <?php if (!empty($pedido->largura) || !empty($pedido->altura)): ?>
+                    <div><strong>Tamanho:</strong> <?php echo esc_html($pedido->largura); ?> x <?php echo esc_html($pedido->altura); ?> <?php echo esc_html($pedido->unidade_medida ?: 'cm'); ?></div>
+                <?php endif; ?>
                 <?php if (!empty($pedido->cores)): ?>
                     <div><strong>Cores:</strong> <?php echo esc_html($pedido->cores); ?></div>
                 <?php endif; ?>
