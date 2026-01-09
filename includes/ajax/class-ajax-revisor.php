@@ -195,7 +195,7 @@ class Bordados_Ajax_Revisor {
             ", $pedido_id));
             
             if ($pedido_atualizado) {
-                Bordados_Emails::enviar_trabalho_pronto($pedido_atualizado);
+                Bordados_Emails::enviar_trabalho_concluido($pedido_atualizado, json_decode($pedido_atualizado->arquivos_finais, true) ?: array());
             }
         }
         
@@ -334,7 +334,7 @@ class Bordados_Ajax_Revisor {
             ", $pedido_id));
             
             if ($pedido_atualizado) {
-                Bordados_Emails::enviar_trabalho_pronto($pedido_atualizado);
+                Bordados_Emails::enviar_trabalho_concluido($pedido_atualizado, json_decode($pedido_atualizado->arquivos_finais, true) ?: array());
             }
         }
         
