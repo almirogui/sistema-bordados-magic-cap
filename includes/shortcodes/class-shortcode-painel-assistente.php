@@ -226,10 +226,12 @@ class Bordados_Shortcode_Painel_Assistente {
         $pedidos = $wpdb->get_results("
             SELECT p.*, 
                    c.display_name as cliente_nome,
-                   prog.display_name as programador_nome
+                   prog.display_name as programador_nome,
+                   rev.display_name as revisor_nome
             FROM $tabela p
             LEFT JOIN {$wpdb->users} c ON p.cliente_id = c.ID
             LEFT JOIN {$wpdb->users} prog ON p.programador_id = prog.ID
+            LEFT JOIN {$wpdb->users} rev ON p.revisor_id = rev.ID
             WHERE $where
             ORDER BY p.data_criacao DESC
             LIMIT $por_pagina OFFSET $offset
@@ -372,6 +374,9 @@ class Bordados_Shortcode_Painel_Assistente {
                         👤 <strong><?php echo esc_html($pedido->cliente_nome ?: 'Cliente não encontrado'); ?></strong>
                         <?php if ($pedido->programador_nome): ?>
                             | 👨‍💻 <?php echo esc_html($pedido->programador_nome); ?>
+                        <?php endif; ?>
+                        <?php if ($pedido->status === 'em_revisao' && !empty($pedido->revisor_nome)): ?>
+                            | 🔍 <span style="color: #e83e8c;"><?php echo esc_html($pedido->revisor_nome); ?></span>
                         <?php endif; ?>
                     </p>
                 </div>
