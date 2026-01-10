@@ -2,10 +2,11 @@
 /**
  * Shortcode: Painel do Revisor - [bordados_painel_revisor]
  * 
- * ATUALIZADO v3.2.1: 
+ * ATUALIZADO v3.2.2: 
  * - Permissão para assistente_bordados
  * - Link para painel assistente
  * - Modal de solicitar acertos com upload de imagens (1-3)
+ * - Upload múltiplo de arquivos revisados (2026-01-10)
  */
 
 if (!defined('ABSPATH')) {
@@ -429,39 +430,19 @@ class Bordados_Shortcode_Painel_Revisor {
                         </div>
                     </div>
                     
-                    <!-- Upload de arquivos revisados -->
+                    <!-- Upload de arquivos revisados - ATUALIZADO: MÚLTIPLOS -->
                     <div style="background: #e3f2fd; padding: 15px; border-radius: 5px; margin-bottom: 20px;">
                         <label><strong>📎 Enviar Arquivos Revisados (opcional):</strong></label>
                         <p style="margin: 5px 0 10px 0; font-size: 13px; color: #666;">
-                            Se você fez alterações nos arquivos, envie as versões revisadas aqui. 
+                            Se você fez alterações nos arquivos, envie as versões revisadas aqui (máx. 5 arquivos). 
                             Os arquivos originais do programador serão mantidos como backup.
                         </p>
                         
-                        <div id="uploads-aprovacao-container">
-                            <div class="upload-aprovacao-item" style="margin-bottom: 10px;">
-                                <input type="file" name="arquivos_revisados[]" 
-                                       accept=".emb,.dst,.exp,.pes,.vp3,.jef,.pdf,.jpg,.jpeg,.png" 
-                                       style="width: 80%;">
-                                <small>Arquivo 1</small>
-                            </div>
-                            <div class="upload-aprovacao-item" style="display: none; margin-bottom: 10px;">
-                                <input type="file" name="arquivos_revisados[]" 
-                                       accept=".emb,.dst,.exp,.pes,.vp3,.jef,.pdf,.jpg,.jpeg,.png" 
-                                       style="width: 70%;">
-                                <button type="button" onclick="removerUploadAprovacao(this)" class="button-small" style="margin-left: 5px;">✕</button>
-                                <small>Arquivo 2</small>
-                            </div>
-                            <div class="upload-aprovacao-item" style="display: none; margin-bottom: 10px;">
-                                <input type="file" name="arquivos_revisados[]" 
-                                       accept=".emb,.dst,.exp,.pes,.vp3,.jef,.pdf,.jpg,.jpeg,.png" 
-                                       style="width: 70%;">
-                                <button type="button" onclick="removerUploadAprovacao(this)" class="button-small" style="margin-left: 5px;">✕</button>
-                                <small>Arquivo 3</small>
-                            </div>
-                        </div>
-                        <button type="button" onclick="adicionarUploadAprovacao()" class="button button-small" id="btn-add-upload-aprovacao">
-                            ➕ Adicionar Outro Arquivo
-                        </button>
+                        <input type="file" name="arquivos_revisados[]" id="arquivos-revisados-input"
+                               accept=".emb,.dst,.exp,.pes,.vp3,.jef,.pdf,.jpg,.jpeg,.png" 
+                               multiple
+                               style="width: 100%; padding: 10px; border: 2px dashed #90caf9; border-radius: 5px; background: white; cursor: pointer;">
+                        <div id="arquivos-selecionados" style="margin-top: 10px; font-size: 13px; color: #1976d2;"></div>
                     </div>
                     
                     <!-- Observações -->
@@ -497,14 +478,9 @@ class Bordados_Shortcode_Painel_Revisor {
             document.getElementById('aprovacao-preco-final').value = '';
             document.getElementById('aprovacao-obs').value = '';
             
-            // Reset uploads
-            var items = document.querySelectorAll('#uploads-aprovacao-container .upload-aprovacao-item');
-            items.forEach(function(item, index) {
-                var input = item.querySelector('input[type="file"]');
-                input.value = '';
-                if (index > 0) item.style.display = 'none';
-            });
-            document.getElementById('btn-add-upload-aprovacao').style.display = 'inline-block';
+            // Reset upload múltiplo
+            document.getElementById('arquivos-revisados-input').value = '';
+            document.getElementById('arquivos-selecionados').innerHTML = '';
             
             document.getElementById('modal-aprovacao').style.display = 'block';
             
@@ -545,26 +521,24 @@ class Bordados_Shortcode_Painel_Revisor {
             document.getElementById('modal-aprovacao').style.display = 'none';
         }
         
-        function adicionarUploadAprovacao() {
-            var items = document.querySelectorAll('#uploads-aprovacao-container .upload-aprovacao-item');
-            for (var i = 0; i < items.length; i++) {
-                if (items[i].style.display === 'none') {
-                    items[i].style.display = 'block';
-                    if (i === items.length - 1) {
-                        document.getElementById('btn-add-upload-aprovacao').style.display = 'none';
-                    }
-                    break;
+        // Mostrar arquivos selecionados no upload múltiplo
+        document.getElementById('arquivos-revisados-input').addEventListener('change', function() {
+            var files = this.files;
+            var lista = document.getElementById('arquivos-selecionados');
+            if (files.length > 0) {
+                var html = '<strong>' + files.length + ' arquivo(s) selecionado(s):</strong><ul style="margin:5px 0;padding-left:20px;">';
+                for (var i = 0; i < Math.min(files.length, 5); i++) {
+                    html += '<li>' + files[i].name + '</li>';
                 }
+                if (files.length > 5) {
+                    html += '<li>... e mais ' + (files.length - 5) + ' arquivo(s)</li>';
+                }
+                html += '</ul>';
+                lista.innerHTML = html;
+            } else {
+                lista.innerHTML = '';
             }
-        }
-        
-        function removerUploadAprovacao(btn) {
-            var item = btn.parentNode;
-            var input = item.querySelector('input[type="file"]');
-            input.value = '';
-            item.style.display = 'none';
-            document.getElementById('btn-add-upload-aprovacao').style.display = 'inline-block';
-        }
+        });
         
         document.getElementById('form-aprovacao').addEventListener('submit', function(e) {
             e.preventDefault();
