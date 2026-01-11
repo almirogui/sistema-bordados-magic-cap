@@ -10,7 +10,18 @@
  * 
  * @package Sistema_Bordados
  * @since 3.2.1
- * @updated 2025-01-09 - Adicionados handlers faltantes
+ * @updated 2025-01-11 - CORRIGIDO: Nomenclatura de arquivos
+ * 
+ * =====================================================
+ * PASSO 2 - SUBSTITUIR O ARQUIVO INTEIRO
+ * =====================================================
+ * 
+ * Este arquivo substitui: includes/ajax/class-ajax-revisor.php
+ * 
+ * CORREÇÕES APLICADAS:
+ * - Usa pathinfo() em vez de wp_check_filetype() para preservar extensões
+ * - Nome do arquivo inclui nome_bordado do pedido
+ * - Formato: NomeBordado-PedidoID-final.extensao
  */
 
 if (!defined('ABSPATH')) {
@@ -204,9 +215,18 @@ class Bordados_Ajax_Revisor {
     
     /**
      * AJAX: Aprovar trabalho com arquivos revisados
+     * 
+     * =====================================================
+     * FUNÇÃO CORRIGIDA - v3.3.0
+     * =====================================================
+     * 
+     * Correções:
+     * - Usa pathinfo() para preservar extensões .emb, .dst, etc.
+     * - Nome do arquivo baseado no nome_bordado do pedido
+     * - Formato: NomeBordado-PedidoID-final.extensao
      */
     public function aprovar_trabalho_com_arquivos() {
-        error_log('=== AJAX: aprovar_trabalho_com_arquivos ===');
+        error_log('=== AJAX: aprovar_trabalho_com_arquivos (CORRIGIDO v3.3.0) ===');
         
         // Verificar nonce
         if (!wp_verify_nonce($_POST['nonce'], 'bordados_nonce')) {
@@ -241,7 +261,10 @@ class Bordados_Ajax_Revisor {
             return;
         }
         
-        // Processar upload de arquivos revisados (se houver)
+        // =====================================================
+        // INÍCIO DA CORREÇÃO - Processamento de Upload
+        // =====================================================
+        
         $arquivos_revisados = array();
         
         if (!empty($_FILES['arquivos_revisados']['name'][0])) {
@@ -258,25 +281,86 @@ class Bordados_Ajax_Revisor {
             
             $files = $_FILES['arquivos_revisados'];
             
+            // ✅ CORREÇÃO 1: Preparar nome do bordado para usar no arquivo
+            $nome_bordado_sanitizado = '';
+            if (!empty($pedido->nome_bordado)) {
+                // Sanitizar nome do bordado para uso em nome de arquivo
+                $nome_bordado_sanitizado = sanitize_file_name($pedido->nome_bordado);
+                // Remover caracteres especiais extras e limitar tamanho
+                $nome_bordado_sanitizado = preg_replace('/[^a-zA-Z0-9\-_]/', '-', $nome_bordado_sanitizado);
+                $nome_bordado_sanitizado = preg_replace('/-+/', '-', $nome_bordado_sanitizado); // Remove hífens duplicados
+                $nome_bordado_sanitizado = trim($nome_bordado_sanitizado, '-');
+                $nome_bordado_sanitizado = substr($nome_bordado_sanitizado, 0, 50); // Limitar a 50 caracteres
+            }
+            
+            // Fallback se nome estiver vazio
+            if (empty($nome_bordado_sanitizado)) {
+                $nome_bordado_sanitizado = 'design';
+            }
+            
+            error_log("📁 Nome bordado sanitizado: " . $nome_bordado_sanitizado);
+            
+            // ✅ CORREÇÃO 2: Lista de extensões de bordado permitidas
+            $extensoes_bordado = array('emb', 'dst', 'exp', 'pes', 'vp3', 'jef', 'hus', 'pec', 'pcs', 'sew', 'xxx');
+            $extensoes_imagem = array('jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp');
+            $extensoes_documento = array('pdf', 'txt');
+            $extensoes_permitidas = array_merge($extensoes_bordado, $extensoes_imagem, $extensoes_documento);
+            
+            // Contador para evitar nomes duplicados da mesma extensão
+            $extensoes_usadas = array();
+            
             for ($i = 0; $i < count($files['name']); $i++) {
                 if (empty($files['name'][$i]) || $files['error'][$i] !== UPLOAD_ERR_OK) {
                     continue;
                 }
                 
-                $file_type = wp_check_filetype($files['name'][$i]);
-                $filename = 'revisado-' . $pedido_id . '-' . time() . '-' . ($i + 1) . '.' . $file_type['ext'];
+                $nome_original = $files['name'][$i];
+                
+                // ✅ CORREÇÃO 3: Usar pathinfo() em vez de wp_check_filetype()
+                $extensao = strtolower(pathinfo($nome_original, PATHINFO_EXTENSION));
+                
+                error_log("📎 Processando arquivo: $nome_original (extensão: $extensao)");
+                
+                // Verificar se extensão é permitida
+                if (!in_array($extensao, $extensoes_permitidas)) {
+                    error_log("❌ Extensão não permitida: $extensao");
+                    continue;
+                }
+                
+                // ✅ CORREÇÃO 4: Criar nome de arquivo significativo
+                // Formato: NomeBordado-PedidoID-final.extensao
+                
+                // Verificar se já existe arquivo com mesma extensão
+                if (isset($extensoes_usadas[$extensao])) {
+                    $extensoes_usadas[$extensao]++;
+                    $sufixo = '-' . $extensoes_usadas[$extensao];
+                } else {
+                    $extensoes_usadas[$extensao] = 1;
+                    $sufixo = '';
+                }
+                
+                $filename = $nome_bordado_sanitizado . '-' . $pedido_id . '-final' . $sufixo . '.' . $extensao;
                 $destination = $upload_path . '/' . $filename;
+                
+                error_log("💾 Salvando como: $filename");
                 
                 if (move_uploaded_file($files['tmp_name'][$i], $destination)) {
                     $arquivos_revisados[] = str_replace($upload_dir['basedir'], $upload_dir['baseurl'], $destination);
+                    error_log("✅ Arquivo salvo com sucesso: $filename");
+                } else {
+                    error_log("❌ Erro ao mover arquivo: " . $files['tmp_name'][$i]);
                 }
             }
         }
         
+        // =====================================================
+        // FIM DA CORREÇÃO - Processamento de Upload
+        // =====================================================
+        
         // Se não tiver novos arquivos, manter os originais
         $arquivos_finais_atuais = !empty($pedido->arquivos_finais) ? $pedido->arquivos_finais : '[]';
         if (!empty($arquivos_revisados)) {
-            // Salvar os arquivos originais como backup
+            // Salvar os arquivos originais como backup (opcional)
             $backup_arquivos = json_decode($arquivos_finais_atuais, true) ?: array();
             
             // Atualizar com os novos arquivos revisados
@@ -479,23 +563,11 @@ class Bordados_Ajax_Revisor {
         
         // Enviar email para o programador
         if (class_exists('Bordados_Emails') && method_exists('Bordados_Emails', 'enviar_acertos_solicitados')) {
-            $pedido_atualizado = $wpdb->get_row($wpdb->prepare("
-                SELECT p.*, 
-                       pr.user_email as programador_email, 
-                       pr.display_name as programador_nome,
-                       c.display_name as cliente_nome
-                FROM $tabela p
-                LEFT JOIN {$wpdb->users} pr ON p.programador_id = pr.ID
-                LEFT JOIN {$wpdb->users} c ON p.cliente_id = c.ID
-                WHERE p.id = %d
-            ", $pedido_id));
-            
-            if ($pedido_atualizado) {
-                Bordados_Emails::enviar_acertos_solicitados($pedido_atualizado);
-            }
+            $pedido_atualizado = $wpdb->get_row($wpdb->prepare("SELECT * FROM $tabela WHERE id = %d", $pedido_id));
+            Bordados_Emails::enviar_acertos_solicitados($pedido_atualizado, $obs_revisor, $imagens_acertos);
         }
         
-        $msg = 'Acertos solicitados ao programador!';
+        $msg = 'Acertos solicitados com sucesso! O programador foi notificado.';
         if (!empty($imagens_acertos)) {
             $msg .= ' (' . count($imagens_acertos) . ' imagem(ns) anexada(s))';
         }
@@ -503,5 +575,3 @@ class Bordados_Ajax_Revisor {
         wp_send_json_success($msg);
     }
 }
-
-?>

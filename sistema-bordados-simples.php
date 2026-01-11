@@ -14,6 +14,221 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
+
+// >>>>>>> INÍCIO - COPIAR A PARTIR DAQUI >>>>>>>
+
+/**
+ * =====================================================
+ * MIME Types para Extensões de Bordado (v3.3.0)
+ * =====================================================
+ * Permite upload de arquivos .emb, .dst, .exp, .pes, etc.
+ */
+add_filter('upload_mimes', 'bordados_adicionar_mime_types');
+function bordados_adicionar_mime_types($mimes) {
+    // Arquivos de bordado - formatos principais
+    $mimes['emb'] = 'application/octet-stream';  // Wilcom
+    $mimes['dst'] = 'application/octet-stream';  // Tajima
+    $mimes['exp'] = 'application/octet-stream';  // Melco
+    $mimes['pes'] = 'application/octet-stream';  // Brother
+    $mimes['vp3'] = 'application/octet-stream';  // Pfaff/Viking
+    $mimes['jef'] = 'application/octet-stream';  // Janome
+    $mimes['hus'] = 'application/octet-stream';  // Husqvarna
+    // Arquivos de bordado - formatos adicionais
+    $mimes['pec'] = 'application/octet-stream';  // Brother (mini)
+    $mimes['pcs'] = 'application/octet-stream';  // Pfaff
+    $mimes['sew'] = 'application/octet-stream';  // Janome/Elna
+    $mimes['xxx'] = 'application/octet-stream';  // Singer
+    return $mimes;
+}
+
+add_filter('wp_check_filetype_and_ext', 'bordados_verificar_tipo_arquivo', 10, 4);
+function bordados_verificar_tipo_arquivo($data, $file, $filename, $mimes) {
+    if (!empty($data['ext']) && !empty($data['type'])) {
+        return $data;
+    }
+    $extensoes_bordado = array('emb', 'dst', 'exp', 'pes', 'vp3', 'jef', 'hus', 'pec', 'pcs', 'sew', 'xxx');
+    $ext = strtolower(pathinfo($filename, PATHINFO_EXTENSION));
+    if (in_array($ext, $extensoes_bordado)) {
+        $data['ext'] = $ext;
+        $data['type'] = 'application/octet-stream';
+        $data['proper_filename'] = $filename;
+    }
+    return $data;
+}
+
+/**
+ * =====================================================
+ * Informações de Tipos de Arquivo (v3.3.0)
+ * =====================================================
+ * Retorna ícone, nome e categoria para cada extensão.
+ * Uso: $info = bordados_get_info_extensao('emb');
+ *      echo $info['icone'] . ' ' . $info['nome']; // 🧵 Wilcom EMB
+ */
+function bordados_get_info_extensao($extensao) {
+    $extensao = strtolower($extensao);
+    
+    $tipos = array(
+        // ===== ARQUIVOS DE BORDADO =====
+        'emb' => array(
+            'nome' => 'Wilcom EMB',
+            'icone' => '🧵',
+            'categoria' => 'bordado',
+            'descricao' => 'Formato Wilcom - arquivo de design editável'
+        ),
+        'dst' => array(
+            'nome' => 'Tajima DST',
+            'icone' => '🪡',
+            'categoria' => 'bordado',
+            'descricao' => 'Formato Tajima - compatível com maioria das máquinas'
+        ),
+        'exp' => array(
+            'nome' => 'Melco EXP',
+            'icone' => '🪡',
+            'categoria' => 'bordado',
+            'descricao' => 'Formato Melco Expanded'
+        ),
+        'pes' => array(
+            'nome' => 'Brother PES',
+            'icone' => '🪡',
+            'categoria' => 'bordado',
+            'descricao' => 'Formato Brother/Babylock'
+        ),
+        'vp3' => array(
+            'nome' => 'Pfaff VP3',
+            'icone' => '🪡',
+            'categoria' => 'bordado',
+            'descricao' => 'Formato Pfaff/Viking/Husqvarna'
+        ),
+        'jef' => array(
+            'nome' => 'Janome JEF',
+            'icone' => '🪡',
+            'categoria' => 'bordado',
+            'descricao' => 'Formato Janome'
+        ),
+        'hus' => array(
+            'nome' => 'Husqvarna HUS',
+            'icone' => '🪡',
+            'categoria' => 'bordado',
+            'descricao' => 'Formato Husqvarna'
+        ),
+        'pec' => array(
+            'nome' => 'Brother PEC',
+            'icone' => '🪡',
+            'categoria' => 'bordado',
+            'descricao' => 'Formato Brother compacto'
+        ),
+        'pcs' => array(
+            'nome' => 'Pfaff PCS',
+            'icone' => '🪡',
+            'categoria' => 'bordado',
+            'descricao' => 'Formato Pfaff'
+        ),
+        'sew' => array(
+            'nome' => 'Janome SEW',
+            'icone' => '🪡',
+            'categoria' => 'bordado',
+            'descricao' => 'Formato Janome/Elna'
+        ),
+        'xxx' => array(
+            'nome' => 'Singer XXX',
+            'icone' => '🪡',
+            'categoria' => 'bordado',
+            'descricao' => 'Formato Singer'
+        ),
+        
+        // ===== IMAGENS =====
+        'jpg' => array(
+            'nome' => 'JPEG Image',
+            'icone' => '🖼️',
+            'categoria' => 'imagem',
+            'descricao' => 'Imagem JPEG'
+        ),
+        'jpeg' => array(
+            'nome' => 'JPEG Image',
+            'icone' => '🖼️',
+            'categoria' => 'imagem',
+            'descricao' => 'Imagem JPEG'
+        ),
+        'png' => array(
+            'nome' => 'PNG Image',
+            'icone' => '🖼️',
+            'categoria' => 'imagem',
+            'descricao' => 'Imagem PNG com transparência'
+        ),
+        'gif' => array(
+            'nome' => 'GIF Image',
+            'icone' => '🖼️',
+            'categoria' => 'imagem',
+            'descricao' => 'Imagem GIF'
+        ),
+        'webp' => array(
+            'nome' => 'WebP Image',
+            'icone' => '🖼️',
+            'categoria' => 'imagem',
+            'descricao' => 'Imagem WebP'
+        ),
+        'bmp' => array(
+            'nome' => 'Bitmap Image',
+            'icone' => '🖼️',
+            'categoria' => 'imagem',
+            'descricao' => 'Imagem Bitmap'
+        ),
+        
+        // ===== DOCUMENTOS =====
+        'pdf' => array(
+            'nome' => 'PDF Document',
+            'icone' => '📄',
+            'categoria' => 'documento',
+            'descricao' => 'Documento PDF - folha de especificações'
+        ),
+        'txt' => array(
+            'nome' => 'Text File',
+            'icone' => '📝',
+            'categoria' => 'documento',
+            'descricao' => 'Arquivo de texto'
+        ),
+    );
+    
+    // Retornar informações ou fallback genérico
+    return isset($tipos[$extensao]) ? $tipos[$extensao] : array(
+        'nome' => strtoupper($extensao) . ' File',
+        'icone' => '📁',
+        'categoria' => 'outro',
+        'descricao' => 'Arquivo ' . strtoupper($extensao)
+    );
+}
+
+/**
+ * Verificar se extensão é de arquivo de bordado
+ */
+function bordados_is_arquivo_bordado($extensao) {
+    $extensoes_bordado = array('emb', 'dst', 'exp', 'pes', 'vp3', 'jef', 'hus', 'pec', 'pcs', 'sew', 'xxx');
+    return in_array(strtolower($extensao), $extensoes_bordado);
+}
+
+/**
+ * Verificar se extensão é de imagem
+ */
+function bordados_is_arquivo_imagem($extensao) {
+    $extensoes_imagem = array('jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp');
+    return in_array(strtolower($extensao), $extensoes_imagem);
+}
+
+/**
+ * Verificar se extensão é de documento
+ */
+function bordados_is_arquivo_documento($extensao) {
+    $extensoes_doc = array('pdf', 'txt', 'doc', 'docx');
+    return in_array(strtolower($extensao), $extensoes_doc);
+}
+
+// <<<<<<< FIM - PARAR DE COPIAR AQUI <<<<<<<
+
+
+
+
+
+
 // Definir constantes do plugin
 define('BORDADOS_PLUGIN_PATH', plugin_dir_path(__FILE__));
 define('BORDADOS_PLUGIN_URL', plugin_dir_url(__FILE__));

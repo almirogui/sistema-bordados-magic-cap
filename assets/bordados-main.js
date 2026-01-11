@@ -2,6 +2,8 @@
  * JavaScript principal do Sistema de Bordados - VERSÃO COM TOAST INTEGRADO
  * Arquivo: bordados-main.js 
  * Local: wp-content/plugins/sistema-bordados-simples/assets/bordados-main.js
+ * 
+ * @updated 2025-01-11 - Modal de download melhorado com ícones (v3.3.0)
  */
 
 // Definir variáveis globais
@@ -291,24 +293,22 @@ window.fecharModalImagem = function() {
 // FUNÇÕES DE DOWNLOAD - COM TOAST
 // ======================================
 
+/**
+ * Botão Download agora abre o modal primeiro (v3.3.0)
+ * Assim o cliente pode ver os arquivos antes de baixar
+ */
 window.baixarArquivos = function(pedidoId) {
-    console.log('🚀 Iniciando download para pedido #' + pedidoId);
-    
-    let btn = document.querySelector(`button[onclick*="baixarArquivos(${pedidoId})"]`) ||
-              document.querySelector(`a[onclick*="baixarArquivos(${pedidoId})"]`) ||
-              document.querySelector(`[onclick*="baixarArquivos(${pedidoId})"]`);
-    
-    let textoOriginal = '';
-    
-    if (btn) {
-        textoOriginal = btn.innerHTML;
-        btn.innerHTML = '⏳ Carregando...';
-        btn.style.pointerEvents = 'none';
-        btn.style.opacity = '0.6';
-        console.log('✅ Botão encontrado e bloqueado');
-    } else {
-        console.warn('⚠️ Botão não encontrado');
-    }
+    console.log('🚀 Abrindo modal de arquivos para pedido #' + pedidoId);
+    // Agora abre o modal em vez de baixar direto
+    mostrarArquivosFinais(pedidoId);
+};
+
+/**
+ * Função que realmente faz o download de todos os arquivos
+ * Chamada pelo botão "Download All" no modal
+ */
+window.executarDownloadArquivos = function(pedidoId) {
+    console.log('⬇️ Executando download para pedido #' + pedidoId);
     
     if (typeof bordados_ajax === 'undefined') {
         console.error('❌ bordados_ajax não está definido');
@@ -364,14 +364,6 @@ window.baixarArquivos = function(pedidoId) {
             }
             
             mostrarMensagem('error', 'Erro de Comunicação', mensagemErro + ' Tente novamente em alguns segundos.');
-        },
-        complete: function() {
-            if (btn) {
-                btn.innerHTML = textoOriginal;
-                btn.style.pointerEvents = 'auto';
-                btn.style.opacity = '1';
-                console.log('✅ Botão restaurado');
-            }
         }
     });
 };
@@ -482,8 +474,50 @@ window.mostrarArquivosFinais = function(pedidoId) {
     });
 };
 
+// ======================================
+// MODAL DE ARQUIVOS MELHORADO (v3.3.0)
+// Com ícones por tipo de arquivo
+// ======================================
+
+/**
+ * Obter ícone e cor por tipo de arquivo
+ */
+function getFileTypeInfo(filename) {
+    const ext = filename.split('.').pop().toLowerCase();
+    
+    const tipos = {
+        // Arquivos de bordado
+        'emb': { icone: '🧵', cor: '#9C27B0', nome: 'Wilcom EMB', categoria: 'bordado' },
+        'dst': { icone: '🪡', cor: '#E91E63', nome: 'Tajima DST', categoria: 'bordado' },
+        'exp': { icone: '🪡', cor: '#F44336', nome: 'Melco EXP', categoria: 'bordado' },
+        'pes': { icone: '🪡', cor: '#2196F3', nome: 'Brother PES', categoria: 'bordado' },
+        'vp3': { icone: '🪡', cor: '#00BCD4', nome: 'Pfaff VP3', categoria: 'bordado' },
+        'jef': { icone: '🪡', cor: '#4CAF50', nome: 'Janome JEF', categoria: 'bordado' },
+        'hus': { icone: '🪡', cor: '#FF9800', nome: 'Husqvarna HUS', categoria: 'bordado' },
+        'pec': { icone: '🪡', cor: '#795548', nome: 'Brother PEC', categoria: 'bordado' },
+        'pcs': { icone: '🪡', cor: '#607D8B', nome: 'Pfaff PCS', categoria: 'bordado' },
+        'sew': { icone: '🪡', cor: '#9E9E9E', nome: 'Janome SEW', categoria: 'bordado' },
+        'xxx': { icone: '🪡', cor: '#FF5722', nome: 'Singer XXX', categoria: 'bordado' },
+        
+        // Imagens
+        'jpg':  { icone: '🖼️', cor: '#607D8B', nome: 'JPEG Image', categoria: 'imagem' },
+        'jpeg': { icone: '🖼️', cor: '#607D8B', nome: 'JPEG Image', categoria: 'imagem' },
+        'png':  { icone: '🖼️', cor: '#607D8B', nome: 'PNG Image', categoria: 'imagem' },
+        'gif':  { icone: '🖼️', cor: '#607D8B', nome: 'GIF Image', categoria: 'imagem' },
+        
+        // Documentos
+        'pdf': { icone: '📄', cor: '#D32F2F', nome: 'PDF Document', categoria: 'documento' },
+        'txt': { icone: '📝', cor: '#757575', nome: 'Text File', categoria: 'documento' },
+    };
+    
+    return tipos[ext] || { icone: '📁', cor: '#9E9E9E', nome: ext.toUpperCase(), categoria: 'outro' };
+}
+
+/**
+ * Modal de Arquivos Melhorado com Ícones
+ */
 function mostrarModalArquivos(dados) {
-    console.log('📂 Mostrando modal de arquivos:', dados);
+    console.log('📂 Mostrando modal de arquivos (v3.3.0):', dados);
     
     // Remover modal existente se houver
     const modalExistente = document.getElementById('modal-arquivos-finais');
@@ -491,52 +525,211 @@ function mostrarModalArquivos(dados) {
         modalExistente.remove();
     }
     
-    // Criar HTML do modal
-    let html = '<div id="modal-arquivos-finais" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 10002; display: flex; align-items: center; justify-content: center;">';
-    html += '<div style="background: white; padding: 30px; border-radius: 12px; max-width: 500px; width: 90%; max-height: 80vh; overflow-y: auto; box-shadow: 0 10px 40px rgba(0,0,0,0.3);">';
-    
-    // Header
-    html += '<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; padding-bottom: 15px; border-bottom: 2px solid #e9ecef;">';
-    html += '<h3 style="margin: 0; color: #2c3e50; font-size: 18px;">📦 Order #' + dados.pedido_id + ' Files</h3>';
-    html += '<button onclick="fecharModalArquivos()" style="background: none; border: none; font-size: 24px; cursor: pointer; color: #6c757d; padding: 0; line-height: 1;">&times;</button>';
-    html += '</div>';
-    
-    // Nome do bordado
-    html += '<p style="margin: 0 0 20px 0; color: #666; font-size: 14px;"><strong>Design:</strong> ' + (dados.nome_bordado || 'N/A') + '</p>';
-    
-    // Lista de arquivos
-    html += '<div style="margin-bottom: 20px;">';
-    html += '<p style="margin: 0 0 10px 0; font-weight: 600; color: #495057;">📎 Available Files (' + dados.total_arquivos + '):</p>';
+    // Agrupar arquivos por categoria
+    const arquivosPorCategoria = {
+        bordado: [],
+        imagem: [],
+        documento: [],
+        outro: []
+    };
     
     if (dados.arquivos && dados.arquivos.length > 0) {
-        dados.arquivos.forEach(function(arquivo, index) {
-            // Extrair nome do arquivo da URL
-            const nomeArquivo = arquivo.split('/').pop() || 'File ' + (index + 1);
-            const extensao = nomeArquivo.split('.').pop().toUpperCase();
-            
-            html += '<div class="arquivo-item" style="display: flex; align-items: center; justify-content: space-between; padding: 12px; background: #f8f9fa; border-radius: 8px; margin-bottom: 8px; border: 1px solid #e9ecef;">';
-            html += '<div style="flex: 1; min-width: 0;">';
-            html += '<span style="font-size: 13px; color: #2c3e50; display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="' + nomeArquivo + '">' + nomeArquivo + '</span>';
-            html += '<span style="font-size: 11px; color: #6c757d; background: #e9ecef; padding: 2px 6px; border-radius: 4px; display: inline-block; margin-top: 4px;">' + extensao + '</span>';
-            html += '</div>';
-            html += '<a href="' + arquivo + '" target="_blank" download style="background: #007bff; color: white; padding: 6px 12px; border-radius: 6px; text-decoration: none; font-size: 12px; font-weight: 500; margin-left: 10px; white-space: nowrap;">⬇️ Download</a>';
-            html += '</div>';
+        dados.arquivos.forEach(function(arquivo) {
+            const nomeArquivo = arquivo.split('/').pop();
+            const info = getFileTypeInfo(nomeArquivo);
+            arquivosPorCategoria[info.categoria].push({
+                url: arquivo,
+                nome: nomeArquivo,
+                info: info
+            });
         });
-    } else {
-        html += '<p style="color: #dc3545; font-style: italic;">No files available.</p>';
     }
     
-    html += '</div>';
+    // Criar HTML do modal
+    let html = `
+    <div id="modal-arquivos-finais" style="
+        position: fixed; 
+        top: 0; 
+        left: 0; 
+        width: 100%; 
+        height: 100%; 
+        background: rgba(0,0,0,0.85); 
+        z-index: 10002; 
+        display: flex; 
+        align-items: center; 
+        justify-content: center;
+    ">
+        <div style="
+            background: white; 
+            padding: 0; 
+            border-radius: 16px; 
+            max-width: 550px; 
+            width: 95%; 
+            max-height: 85vh; 
+            overflow: hidden;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.4);
+        ">
+            <!-- Header -->
+            <div style="
+                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                color: white;
+                padding: 20px 25px;
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+            ">
+                <div>
+                    <h3 style="margin: 0; font-size: 18px; font-weight: 600;">
+                        📦 Order #${dados.pedido_id}
+                    </h3>
+                    <p style="margin: 5px 0 0 0; font-size: 13px; opacity: 0.9;">
+                        ${dados.nome_bordado || 'Design files'}
+                    </p>
+                </div>
+                <button onclick="fecharModalArquivos()" style="
+                    background: rgba(255,255,255,0.2); 
+                    border: none; 
+                    font-size: 20px; 
+                    cursor: pointer; 
+                    color: white; 
+                    width: 36px;
+                    height: 36px;
+                    border-radius: 50%;
+                ">&times;</button>
+            </div>
+            
+            <!-- Conteúdo -->
+            <div style="padding: 20px 25px; max-height: 50vh; overflow-y: auto;">
+    `;
     
-    // Botões de ação
-    html += '<div style="display: flex; gap: 10px; justify-content: center; padding-top: 15px; border-top: 1px solid #e9ecef;">';
+    // Função para renderizar seção de arquivos
+    function renderizarSecao(titulo, icone, arquivos, corFundo) {
+        if (arquivos.length === 0) return '';
+        
+        let secaoHtml = `
+            <div style="margin-bottom: 20px;">
+                <h4 style="
+                    margin: 0 0 12px 0; 
+                    font-size: 13px; 
+                    color: #666;
+                    text-transform: uppercase;
+                    letter-spacing: 0.5px;
+                ">${icone} ${titulo} (${arquivos.length})</h4>
+        `;
+        
+        arquivos.forEach(function(arq) {
+            const extensao = arq.nome.split('.').pop().toUpperCase();
+            secaoHtml += `
+                <div style="
+                    display: flex; 
+                    align-items: center; 
+                    justify-content: space-between; 
+                    padding: 12px 15px; 
+                    background: ${corFundo}; 
+                    border-radius: 10px; 
+                    margin-bottom: 8px;
+                    border: 1px solid #e9ecef;
+                ">
+                    <div style="flex: 1; min-width: 0; display: flex; align-items: center; gap: 12px;">
+                        <span style="font-size: 24px;">${arq.info.icone}</span>
+                        <div style="min-width: 0;">
+                            <span style="
+                                font-size: 14px; 
+                                color: #2c3e50; 
+                                display: block; 
+                                overflow: hidden; 
+                                text-overflow: ellipsis; 
+                                white-space: nowrap;
+                                font-weight: 500;
+                            " title="${arq.nome}">${arq.nome}</span>
+                            <span style="
+                                font-size: 11px; 
+                                color: white; 
+                                background: ${arq.info.cor}; 
+                                padding: 2px 8px; 
+                                border-radius: 4px; 
+                                display: inline-block; 
+                                margin-top: 4px;
+                            ">${extensao}</span>
+                        </div>
+                    </div>
+                    <a href="${arq.url}" target="_blank" download style="
+                        background: linear-gradient(135deg, #28a745 0%, #20c997 100%); 
+                        color: white; 
+                        padding: 8px 16px; 
+                        border-radius: 8px; 
+                        text-decoration: none; 
+                        font-size: 12px; 
+                        font-weight: 600; 
+                        margin-left: 12px;
+                    ">⬇️ Download</a>
+                </div>
+            `;
+        });
+        
+        secaoHtml += '</div>';
+        return secaoHtml;
+    }
+    
+    // Renderizar seções na ordem de importância
+    html += renderizarSecao('Embroidery Files', '🧵', arquivosPorCategoria.bordado, '#f8f4ff');
+    html += renderizarSecao('Documents', '📄', arquivosPorCategoria.documento, '#fff8f0');
+    html += renderizarSecao('Images', '🖼️', arquivosPorCategoria.imagem, '#f0f8ff');
+    html += renderizarSecao('Other Files', '📁', arquivosPorCategoria.outro, '#f5f5f5');
+    
+    // Mensagem se não houver arquivos
+    if (!dados.arquivos || dados.arquivos.length === 0) {
+        html += `
+            <div style="text-align: center; padding: 40px 20px; color: #666;">
+                <span style="font-size: 48px; display: block; margin-bottom: 15px;">📭</span>
+                <p style="margin: 0; font-size: 15px;">No files available for download.</p>
+            </div>
+        `;
+    }
+    
+    html += '</div>'; // Fecha conteúdo
+    
+    // Footer com botões
+    html += `
+        <div style="
+            padding: 20px 25px; 
+            border-top: 1px solid #e9ecef; 
+            display: flex; 
+            gap: 12px; 
+            justify-content: center;
+            background: #fafafa;
+        ">
+    `;
+    
     if (dados.arquivos && dados.arquivos.length > 0) {
-        html += '<button onclick="baixarTodosArquivos(' + dados.pedido_id + ')" style="background: linear-gradient(135deg, #28a745 0%, #20c997 100%); color: white; border: none; padding: 10px 20px; border-radius: 8px; cursor: pointer; font-weight: 600; font-size: 14px;">⬇️ Download All</button>';
+        html += `
+            <button onclick="baixarTodosArquivos(${dados.pedido_id})" style="
+                background: linear-gradient(135deg, #28a745 0%, #20c997 100%); 
+                color: white; 
+                border: none; 
+                padding: 12px 24px; 
+                border-radius: 10px; 
+                cursor: pointer; 
+                font-weight: 600; 
+                font-size: 14px;
+            ">⬇️ Download All</button>
+        `;
     }
-    html += '<button onclick="fecharModalArquivos()" style="background: #6c757d; color: white; border: none; padding: 10px 20px; border-radius: 8px; cursor: pointer; font-weight: 500; font-size: 14px;">✕ Close</button>';
-    html += '</div>';
     
-    html += '</div></div>';
+    html += `
+            <button onclick="fecharModalArquivos()" style="
+                background: #6c757d; 
+                color: white; 
+                border: none; 
+                padding: 12px 24px; 
+                border-radius: 10px; 
+                cursor: pointer; 
+                font-weight: 500; 
+                font-size: 14px;
+            ">✕ Close</button>
+        </div>
+    </div>
+    </div>`;
     
     // Inserir modal no DOM
     document.body.insertAdjacentHTML('beforeend', html);
@@ -558,8 +751,12 @@ window.fecharModalArquivos = function() {
 
 window.baixarTodosArquivos = function(pedidoId) {
     fecharModalArquivos();
-    baixarArquivos(pedidoId);
+    executarDownloadArquivos(pedidoId);
 };
+
+// Exportar para uso global
+window.mostrarModalArquivos = mostrarModalArquivos;
+window.getFileTypeInfo = getFileTypeInfo;
 
 // ======================================
 // 🍞 INICIALIZAÇÃO COM INTEGRAÇÃO TOAST

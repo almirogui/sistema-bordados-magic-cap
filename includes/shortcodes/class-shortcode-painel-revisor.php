@@ -119,8 +119,8 @@ class Bordados_Shortcode_Painel_Revisor {
         </div>
         
         <!-- Modal para enviar orçamento -->
-        <div id="modal-orcamento" style="display:none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 10001;">
-            <div style="position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: white; padding: 30px; border-radius: 10px; max-width: 600px; width: 90%; max-height: 90%; overflow-y: auto;">
+        <div id="modal-orcamento" style="display:none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 10001; align-items: center; justify-content: center;">
+            <div style="background: white; padding: 30px; border-radius: 10px; max-width: 600px; width: 90%; max-height: 90%; overflow-y: auto;">
                 <h4>💰 Enviar Orçamento ao Cliente</h4>
                 
                 <div id="orcamento-info" style="background: #f8f9fa; padding: 15px; border-radius: 5px; margin-bottom: 20px;"></div>
@@ -168,8 +168,8 @@ class Bordados_Shortcode_Painel_Revisor {
         </div>
         
         <!-- NOVO: Modal para solicitar acertos com upload de imagens -->
-        <div id="modal-acertos" style="display:none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 10003;">
-            <div style="position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: white; padding: 30px; border-radius: 10px; max-width: 600px; width: 90%; max-height: 90%; overflow-y: auto;">
+        <div id="modal-acertos" style="display:none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 10003; align-items: center; justify-content: center;">
+            <div style="background: white; padding: 30px; border-radius: 10px; max-width: 600px; width: 90%; max-height: 90%; overflow-y: auto;">
                 <h4>🔧 Solicitar Acertos ao Programador</h4>
                 
                 <div id="acertos-info" style="background: #fff3cd; padding: 15px; border-radius: 5px; margin-bottom: 20px;"></div>
@@ -244,7 +244,7 @@ class Bordados_Shortcode_Painel_Revisor {
             document.getElementById('orcamento-preco-calculado').value = '';
             document.getElementById('orcamento-preco-final').value = '';
             document.getElementById('orcamento-obs').value = '';
-            document.getElementById('modal-orcamento').style.display = 'block';
+            document.getElementById('modal-orcamento').style.display = 'flex';
         }
         
         function fecharModalOrcamento() {
@@ -331,7 +331,7 @@ class Bordados_Shortcode_Painel_Revisor {
             });
             document.getElementById('btn-add-upload-acertos').style.display = 'inline-block';
             
-            document.getElementById('modal-acertos').style.display = 'block';
+            document.getElementById('modal-acertos').style.display = 'flex';
         }
         
         function fecharModalAcertos() {
@@ -405,8 +405,8 @@ class Bordados_Shortcode_Painel_Revisor {
         </script>
         
         <!-- Modal para aprovação do revisor -->
-        <div id="modal-aprovacao" style="display:none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 10002;">
-            <div style="position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: white; padding: 30px; border-radius: 10px; max-width: 700px; width: 90%; max-height: 90%; overflow-y: auto;">
+        <div id="modal-aprovacao" style="display:none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 10002; align-items: center; justify-content: center;">
+            <div style="background: white; padding: 30px; border-radius: 10px; max-width: 700px; width: 90%; max-height: 90%; overflow-y: auto;">
                 <h4>✅ Aprovar e Entregar ao Cliente</h4>
                 
                 <div id="aprovacao-info" style="background: #d4edda; padding: 15px; border-radius: 5px; margin-bottom: 20px;"></div>
@@ -482,7 +482,7 @@ class Bordados_Shortcode_Painel_Revisor {
             document.getElementById('arquivos-revisados-input').value = '';
             document.getElementById('arquivos-selecionados').innerHTML = '';
             
-            document.getElementById('modal-aprovacao').style.display = 'block';
+            document.getElementById('modal-aprovacao').style.display = 'flex';
             
             // CALCULAR PREÇO AUTOMATICAMENTE via AJAX
             if (clienteId && numeroPontos && numeroPontos > 0) {
