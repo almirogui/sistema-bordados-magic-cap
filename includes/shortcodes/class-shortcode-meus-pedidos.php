@@ -247,7 +247,25 @@ class Bordados_Shortcode_Meus_Pedidos {
     data-status="<?php echo esc_attr($pedido->status); ?>">
                         <td style="font-weight: bold;">#<?php echo $pedido->id; ?></td>
                         <td style="text-align: center;">
-                            <?php echo Bordados_Helpers::exibir_arquivo(Bordados_Helpers::obter_primeiro_arquivo($pedido), '50px'); ?>
+                            <?php 
+                            // Se pronto, mostrar imagem final (se houver), senão imagem original
+                            $imagem_display = Bordados_Helpers::obter_primeiro_arquivo($pedido);
+                            
+                            if ($pedido->status == 'pronto' && !empty($pedido->arquivos_finais)) {
+                                $arquivos_finais_img = json_decode($pedido->arquivos_finais, true);
+                                if (is_array($arquivos_finais_img)) {
+                                    foreach ($arquivos_finais_img as $arq_final) {
+                                        $ext_final = strtolower(pathinfo($arq_final, PATHINFO_EXTENSION));
+                                        if (in_array($ext_final, ['jpg', 'jpeg', 'png', 'gif', 'webp'])) {
+                                            $imagem_display = $arq_final;
+                                            break; // Usar a primeira imagem encontrada
+                                        }
+                                    }
+                                }
+                            }
+                            
+                            echo Bordados_Helpers::exibir_arquivo($imagem_display, '50px');
+                            ?>
                         </td>
 <td>
     <strong><?php echo esc_html($pedido->nome_bordado); ?></strong>
