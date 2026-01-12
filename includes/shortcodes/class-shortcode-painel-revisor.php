@@ -413,16 +413,18 @@ class Bordados_Shortcode_Painel_Revisor {
                 
                 <form id="form-aprovacao" enctype="multipart/form-data">
                     <input type="hidden" id="aprovacao-pedido-id" name="pedido_id">
-                    
                     <!-- Preços -->
-                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 20px;">
+                    <div style="display: grid; grid-template-columns: <?php echo current_user_can('administrator') ? '1fr 1fr' : '1fr'; ?>; gap: 15px; margin-bottom: 20px;">
+                        <?php if (current_user_can('administrator')): ?>
                         <div>
                             <label><strong>💰 Preço do Programador:</strong></label>
                             <input type="text" id="aprovacao-preco-programador" readonly 
                                    style="width: 100%; padding: 10px; background: #f0f0f0; border: 1px solid #ddd; border-radius: 5px;">
                             <small style="color: #666;">Definido pelo programador (apenas referência)</small>
                         </div>
+                        <?php endif; ?>
                         <div>
+                    
                             <label><strong>💵 Preço Final para o Cliente:</strong></label>
                             <input type="number" id="aprovacao-preco-final" name="preco_final" step="0.01" min="0"
                                    style="width: 100%; padding: 10px; border: 1px solid #28a745; border-radius: 5px;">
@@ -713,7 +715,9 @@ class Bordados_Shortcode_Painel_Revisor {
                     <p style="margin: 5px 0;"><strong>Tecido:</strong> <?php echo esc_html($trabalho->tipo_tecido); ?></p>
                 </div>
                 <div>
+                    <?php if (current_user_can('administrator')): ?>
                     <p style="margin: 5px 0;"><strong>Preço Programador:</strong> <?php echo Bordados_Helpers::formatar_preco($trabalho->preco_programador); ?></p>
+                    <?php endif; ?>
                     <p style="margin: 5px 0;"><strong>Prazo:</strong> <?php echo esc_html($trabalho->prazo_entrega); ?></p>
                     <?php if (!empty($trabalho->cores)): ?>
                         <p style="margin: 5px 0;"><strong>Cores:</strong> <?php echo esc_html($trabalho->cores); ?></p>

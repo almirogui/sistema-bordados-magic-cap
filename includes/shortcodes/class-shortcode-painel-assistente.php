@@ -392,7 +392,7 @@ class Bordados_Shortcode_Painel_Assistente {
                 <?php if (!empty($pedido->cores)): ?>
                     <div><strong>Cores:</strong> <?php echo esc_html($pedido->cores); ?></div>
                 <?php endif; ?>
-                <?php if (!empty($pedido->preco_programador)): ?>
+                <?php if (!empty($pedido->preco_programador) && current_user_can('administrator')): ?>
                     <div><strong>Preço:</strong> $<?php echo number_format($pedido->preco_programador, 2); ?></div>
                 <?php endif; ?>
                 <div><strong>Data:</strong> <?php echo date('d/m/Y H:i', strtotime($pedido->data_criacao)); ?></div>
