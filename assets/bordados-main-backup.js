@@ -1,9 +1,9 @@
 /**
  * JavaScript principal do Sistema de Bordados - VERSÃO COM TOAST INTEGRADO
- * Arquivo: bordados-main.js
+ * Arquivo: bordados-main.js 
  * Local: wp-content/plugins/sistema-bordados-simples/assets/bordados-main.js
- *
- * @updated 2025-01-13 - Modal de download CORRIGIDO z-index (v3.3.1)
+ * 
+ * @updated 2025-01-11 - Modal de download melhorado com ícones (v3.3.0)
  */
 
 // Definir variáveis globais
@@ -21,7 +21,7 @@ console.log('=== Sistema Bordados Carregando COM TOAST ===');
  */
 function mostrarMensagem(tipo, titulo, mensagem) {
     console.log(`📢 Mensagem ${tipo}:`, titulo, mensagem);
-
+    
     // Tentar usar o sistema Toast
     if (typeof window.BordadosToast !== 'undefined' && window.BordadosToast[tipo]) {
         try {
@@ -30,7 +30,7 @@ function mostrarMensagem(tipo, titulo, mensagem) {
             console.warn('⚠️ Erro no Toast, usando fallback:', error);
         }
     }
-
+    
     // Fallback para alert tradicional
     const textoCompleto = titulo ? `${titulo}: ${mensagem}` : mensagem;
     alert(textoCompleto);
@@ -41,7 +41,7 @@ function mostrarMensagem(tipo, titulo, mensagem) {
  */
 function aguardarToast(callback, maxTentativas = 10) {
     let tentativas = 0;
-
+    
     const verificar = () => {
         if (typeof window.BordadosToast !== 'undefined') {
             console.log('✅ Toast disponível, executando callback');
@@ -55,7 +55,7 @@ function aguardarToast(callback, maxTentativas = 10) {
             callback();
         }
     };
-
+    
     verificar();
 }
 
@@ -65,18 +65,18 @@ function aguardarToast(callback, maxTentativas = 10) {
 
 window.adicionarUpload = function() {
     console.log('adicionarUpload chamada, uploadCount:', window.uploadCount);
-
+    
     if (window.uploadCount >= 3) return;
-
+    
     const items = document.querySelectorAll('.upload-item');
     console.log('Upload items encontrados:', items.length);
-
+    
     if (window.uploadCount < items.length) {
         items[window.uploadCount].style.display = 'block';
         window.uploadCount++;
         console.log('Novo uploadCount:', window.uploadCount);
     }
-
+    
     if (window.uploadCount >= 3) {
         const btn = document.getElementById('btn-add-upload');
         if (btn) btn.style.display = 'none';
@@ -88,7 +88,7 @@ window.removerUpload = function(btn) {
     item.style.display = 'none';
     item.querySelector('input').value = '';
     window.uploadCount--;
-
+    
     const addBtn = document.getElementById('btn-add-upload');
     if (addBtn) addBtn.style.display = 'block';
 };
@@ -99,13 +99,13 @@ window.removerUpload = function(btn) {
 
 window.adicionarUploadFinal = function() {
     if (window.uploadFinalCount >= 3) return;
-
+    
     const items = document.querySelectorAll('.upload-final-item');
     if (window.uploadFinalCount < items.length) {
         items[window.uploadFinalCount].style.display = 'block';
         window.uploadFinalCount++;
     }
-
+    
     if (window.uploadFinalCount >= 3) {
         const btn = document.getElementById('btn-add-upload-final');
         if (btn) btn.style.display = 'none';
@@ -117,7 +117,7 @@ window.removerUploadFinal = function(btn) {
     item.style.display = 'none';
     item.querySelector('input').value = '';
     window.uploadFinalCount--;
-
+    
     const addBtn = document.getElementById('btn-add-upload-final');
     if (addBtn) addBtn.style.display = 'block';
 };
@@ -154,12 +154,12 @@ window.iniciarProducao = function(pedidoId) {
 
 window.entregarTrabalho = function(pedidoId) {
     console.log('entregarTrabalho chamada para pedido:', pedidoId);
-
+    
     const modal = document.getElementById('modal-entrega');
     if (modal) {
         document.getElementById('pedido-id-entrega').value = pedidoId;
         modal.style.display = 'block';
-
+        
         // Reset upload counters
         window.uploadFinalCount = 1;
         const items = document.querySelectorAll('.upload-final-item');
@@ -195,15 +195,15 @@ window.fecharModal = function() {
 window.atribuirPedido = function(pedidoId) {
     var programadorId = jQuery('#programador-' + pedidoId).val();
     var btnAtribuir = jQuery('#btn-atribuir-' + pedidoId);
-
+    
     if (!programadorId) {
         mostrarMensagem('warning', 'Atenção!', 'Por favor, selecione um programador.');
         return;
     }
-
+    
     if (confirm('Atribuir este pedido ao programador selecionado?')) {
         btnAtribuir.prop('disabled', true).text('⏳ Atribuindo...');
-
+        
         jQuery.ajax({
             url: bordados_ajax.ajax_url,
             type: 'POST',
@@ -217,17 +217,17 @@ window.atribuirPedido = function(pedidoId) {
                 if (response.success) {
                     // 🍞 Usar Toast em vez de mostrarMensagemAdmin
                     mostrarMensagem('success', 'Pedido Atribuído!', response.data.message);
-
+                    
                     setTimeout(function() {
                         btnAtribuir.closest('div[style*="background: #fff"]').fadeOut(500, function() {
                             jQuery(this).remove();
-
+                            
                             if (jQuery('div[style*="background: #fff"]').length === 0) {
                                 location.reload();
                             }
                         });
                     }, 2000);
-
+                    
                 } else {
                     mostrarMensagem('error', 'Erro na Atribuição', response.data);
                     btnAtribuir.prop('disabled', false).text('✅ Atribuir');
@@ -259,25 +259,25 @@ window.mostrarImagemGrande = function(url) {
         modal.id = 'modal-imagem';
         modal.style.cssText = 'display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); z-index: 9999999; cursor: pointer;';
         modal.onclick = window.fecharModalImagem;
-
+        
         var content = document.createElement('div');
         content.style.cssText = 'display: flex; justify-content: center; align-items: center; height: 100%; padding: 20px;';
-
+        
         var img = document.createElement('img');
         img.id = 'imagem-ampliada';
         img.style.cssText = 'max-width: 90%; max-height: 90%; border-radius: 10px; box-shadow: 0 4px 20px rgba(0,0,0,0.5);';
-
+        
         var closeBtn = document.createElement('div');
         closeBtn.innerHTML = '×';
         closeBtn.style.cssText = 'position: absolute; top: 20px; right: 30px; color: white; font-size: 30px; cursor: pointer;';
         closeBtn.onclick = window.fecharModalImagem;
-
+        
         content.appendChild(img);
         modal.appendChild(content);
         modal.appendChild(closeBtn);
         document.body.appendChild(modal);
     }
-
+    
     document.getElementById('imagem-ampliada').src = url;
     modal.style.display = 'block';
 };
@@ -309,13 +309,13 @@ window.baixarArquivos = function(pedidoId) {
  */
 window.executarDownloadArquivos = function(pedidoId) {
     console.log('⬇️ Executando download para pedido #' + pedidoId);
-
+    
     if (typeof bordados_ajax === 'undefined') {
         console.error('❌ bordados_ajax não está definido');
         mostrarMensagem('error', 'Erro de Configuração', 'Recarregue a página.');
         return;
     }
-
+    
     jQuery.ajax({
         url: bordados_ajax.ajax_url,
         type: 'POST',
@@ -326,16 +326,16 @@ window.executarDownloadArquivos = function(pedidoId) {
         },
         success: function(response) {
             console.log('📡 Resposta recebida:', response);
-
+            
             if (response.success && response.data && response.data.arquivos) {
                 const arquivos = response.data.arquivos;
                 console.log('📁 Arquivos encontrados:', arquivos);
-
+                
                 if (arquivos.length > 0) {
                     baixarArquivosComDelay(arquivos);
-
+                    
                     // 🍞 Usar Toast em vez de alert
-                    mostrarMensagem('success', 'Download Started!',
+                    mostrarMensagem('success', 'Download Started!', 
                         `${arquivos.length} file(s) being downloaded. Check your Downloads folder.`);
                 } else {
                     mostrarMensagem('warning', 'No Files', 'No files available for download.');
@@ -352,7 +352,7 @@ window.executarDownloadArquivos = function(pedidoId) {
                 error: error,
                 responseText: xhr.responseText
             });
-
+            
             let mensagemErro = 'Erro de comunicação com o servidor.';
             try {
                 const errorResponse = JSON.parse(xhr.responseText);
@@ -362,7 +362,7 @@ window.executarDownloadArquivos = function(pedidoId) {
             } catch (e) {
                 // Usar mensagem padrão
             }
-
+            
             mostrarMensagem('error', 'Erro de Comunicação', mensagemErro + ' Tente novamente em alguns segundos.');
         }
     });
@@ -384,7 +384,7 @@ function baixarArquivosComDelay(arquivos) {
 function criarLinkDownload(url, numero) {
     try {
         const nomeArquivo = extrairNomeArquivo(url) || `embroidery_file_${numero}`;
-
+        
         // Método 1: Tentar fetch + blob (funciona melhor para cross-origin)
         fetch(url, {
             method: 'GET',
@@ -400,22 +400,22 @@ function criarLinkDownload(url, numero) {
         .then(blob => {
             // Criar URL do blob
             const blobUrl = window.URL.createObjectURL(blob);
-
+            
             // Criar link de download
             const link = document.createElement('a');
             link.href = blobUrl;
             link.download = nomeArquivo;
             link.style.display = 'none';
-
+            
             document.body.appendChild(link);
             link.click();
-
+            
             // Limpar
             setTimeout(function() {
                 document.body.removeChild(link);
                 window.URL.revokeObjectURL(blobUrl);
             }, 1000);
-
+            
             console.log(`✅ Download ${numero} completed: ${nomeArquivo}`);
         })
         .catch(error => {
@@ -423,7 +423,7 @@ function criarLinkDownload(url, numero) {
             // Fallback: Abrir em nova aba (usuário pode salvar manualmente)
             window.open(url, '_blank');
         });
-
+        
     } catch (error) {
         console.error(`❌ Error in download ${numero}:`, error);
         // Fallback final: abrir em nova aba
@@ -445,12 +445,12 @@ function extrairNomeArquivo(url) {
 
 window.mostrarArquivosFinais = function(pedidoId) {
     console.log('👁️ Mostrando arquivos finais para pedido #' + pedidoId);
-
+    
     if (typeof bordados_ajax === 'undefined') {
         mostrarMensagem('error', 'Erro de Configuração', 'Recarregue a página.');
         return;
     }
-
+    
     jQuery.ajax({
         url: bordados_ajax.ajax_url,
         type: 'POST',
@@ -475,8 +475,8 @@ window.mostrarArquivosFinais = function(pedidoId) {
 };
 
 // ======================================
-// MODAL DE ARQUIVOS CORRIGIDO (v3.3.1)
-// Com z-index ultra alto e bloqueio de página
+// MODAL DE ARQUIVOS MELHORADO (v3.3.0)
+// Com ícones por tipo de arquivo
 // ======================================
 
 /**
@@ -484,7 +484,7 @@ window.mostrarArquivosFinais = function(pedidoId) {
  */
 function getFileTypeInfo(filename) {
     const ext = filename.split('.').pop().toLowerCase();
-
+    
     const tipos = {
         // Arquivos de bordado
         'emb': { icone: '🧵', cor: '#9C27B0', nome: 'Wilcom EMB', categoria: 'bordado' },
@@ -498,37 +498,33 @@ function getFileTypeInfo(filename) {
         'pcs': { icone: '🪡', cor: '#607D8B', nome: 'Pfaff PCS', categoria: 'bordado' },
         'sew': { icone: '🪡', cor: '#9E9E9E', nome: 'Janome SEW', categoria: 'bordado' },
         'xxx': { icone: '🪡', cor: '#FF5722', nome: 'Singer XXX', categoria: 'bordado' },
-
+        
         // Imagens
         'jpg':  { icone: '🖼️', cor: '#607D8B', nome: 'JPEG Image', categoria: 'imagem' },
         'jpeg': { icone: '🖼️', cor: '#607D8B', nome: 'JPEG Image', categoria: 'imagem' },
         'png':  { icone: '🖼️', cor: '#607D8B', nome: 'PNG Image', categoria: 'imagem' },
         'gif':  { icone: '🖼️', cor: '#607D8B', nome: 'GIF Image', categoria: 'imagem' },
-
+        
         // Documentos
         'pdf': { icone: '📄', cor: '#D32F2F', nome: 'PDF Document', categoria: 'documento' },
         'txt': { icone: '📝', cor: '#757575', nome: 'Text File', categoria: 'documento' },
     };
-
+    
     return tipos[ext] || { icone: '📁', cor: '#9E9E9E', nome: ext.toUpperCase(), categoria: 'outro' };
 }
 
 /**
- * Modal de Arquivos CORRIGIDO com z-index ultra alto
- * v3.3.1 - Corrige problema de sobreposição com botões da tabela
+ * Modal de Arquivos Melhorado com Ícones
  */
 function mostrarModalArquivos(dados) {
-    console.log('📂 Mostrando modal de arquivos (v3.3.1 CORRIGIDO):', dados);
-
+    console.log('📂 Mostrando modal de arquivos (v3.3.0):', dados);
+    
     // Remover modal existente se houver
     const modalExistente = document.getElementById('modal-arquivos-finais');
     if (modalExistente) {
         modalExistente.remove();
     }
-
-    // NOVO: Adicionar classe ao body para bloquear scroll e interações
-    document.body.classList.add('modal-arquivos-aberto');
-
+    
     // Agrupar arquivos por categoria
     const arquivosPorCategoria = {
         bordado: [],
@@ -536,7 +532,7 @@ function mostrarModalArquivos(dados) {
         documento: [],
         outro: []
     };
-
+    
     if (dados.arquivos && dados.arquivos.length > 0) {
         dados.arquivos.forEach(function(arquivo) {
             const nomeArquivo = arquivo.split('/').pop();
@@ -548,56 +544,30 @@ function mostrarModalArquivos(dados) {
             });
         });
     }
-
-    // NOVO: Adicionar CSS de bloqueio inline
-    let styleBlock = document.getElementById('modal-arquivos-style');
-    if (!styleBlock) {
-        styleBlock = document.createElement('style');
-        styleBlock.id = 'modal-arquivos-style';
-        styleBlock.textContent = `
-            body.modal-arquivos-aberto {
-                overflow: hidden !important;
-            }
-            body.modal-arquivos-aberto .bordados-table,
-            body.modal-arquivos-aberto .bordados-dashboard-cliente {
-                pointer-events: none !important;
-            }
-            body.modal-arquivos-aberto #modal-arquivos-finais {
-                pointer-events: auto !important;
-            }
-            body.modal-arquivos-aberto #modal-arquivos-finais * {
-                pointer-events: auto !important;
-            }
-        `;
-        document.head.appendChild(styleBlock);
-    }
-
-    // Criar HTML do modal com z-index MUITO alto
+    
+    // Criar HTML do modal
     let html = `
     <div id="modal-arquivos-finais" style="
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        background: rgba(0,0,0,0.9);
-        z-index: 2147483647;
-        display: flex;
-        align-items: center;
+        position: fixed; 
+        top: 0; 
+        left: 0; 
+        width: 100%; 
+        height: 100%; 
+        background: rgba(0,0,0,0.85); 
+        z-index: 10002; 
+        display: flex; 
+        align-items: center; 
         justify-content: center;
-        pointer-events: auto;
     ">
         <div style="
-            background: white;
-            padding: 0;
-            border-radius: 16px;
-            max-width: 550px;
-            width: 95%;
-            max-height: 85vh;
+            background: white; 
+            padding: 0; 
+            border-radius: 16px; 
+            max-width: 550px; 
+            width: 95%; 
+            max-height: 85vh; 
             overflow: hidden;
-            box-shadow: 0 20px 60px rgba(0,0,0,0.5);
-            position: relative;
-            z-index: 2147483647;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.4);
         ">
             <!-- Header -->
             <div style="
@@ -617,49 +587,46 @@ function mostrarModalArquivos(dados) {
                     </p>
                 </div>
                 <button onclick="fecharModalArquivos()" style="
-                    background: rgba(255,255,255,0.2);
-                    border: none;
-                    font-size: 20px;
-                    cursor: pointer;
-                    color: white;
+                    background: rgba(255,255,255,0.2); 
+                    border: none; 
+                    font-size: 20px; 
+                    cursor: pointer; 
+                    color: white; 
                     width: 36px;
                     height: 36px;
                     border-radius: 50%;
-                    display: flex;
-                    align-items: center;
-                    justify-content: center;
                 ">&times;</button>
             </div>
-
+            
             <!-- Conteúdo -->
             <div style="padding: 20px 25px; max-height: 50vh; overflow-y: auto;">
     `;
-
+    
     // Função para renderizar seção de arquivos
     function renderizarSecao(titulo, icone, arquivos, corFundo) {
         if (arquivos.length === 0) return '';
-
+        
         let secaoHtml = `
             <div style="margin-bottom: 20px;">
                 <h4 style="
-                    margin: 0 0 12px 0;
-                    font-size: 13px;
+                    margin: 0 0 12px 0; 
+                    font-size: 13px; 
                     color: #666;
                     text-transform: uppercase;
                     letter-spacing: 0.5px;
                 ">${icone} ${titulo} (${arquivos.length})</h4>
         `;
-
+        
         arquivos.forEach(function(arq) {
             const extensao = arq.nome.split('.').pop().toUpperCase();
             secaoHtml += `
                 <div style="
-                    display: flex;
-                    align-items: center;
-                    justify-content: space-between;
-                    padding: 12px 15px;
-                    background: ${corFundo};
-                    border-radius: 10px;
+                    display: flex; 
+                    align-items: center; 
+                    justify-content: space-between; 
+                    padding: 12px 15px; 
+                    background: ${corFundo}; 
+                    border-radius: 10px; 
                     margin-bottom: 8px;
                     border: 1px solid #e9ecef;
                 ">
@@ -667,50 +634,49 @@ function mostrarModalArquivos(dados) {
                         <span style="font-size: 24px;">${arq.info.icone}</span>
                         <div style="min-width: 0;">
                             <span style="
-                                font-size: 14px;
-                                color: #2c3e50;
-                                display: block;
-                                overflow: hidden;
-                                text-overflow: ellipsis;
+                                font-size: 14px; 
+                                color: #2c3e50; 
+                                display: block; 
+                                overflow: hidden; 
+                                text-overflow: ellipsis; 
                                 white-space: nowrap;
                                 font-weight: 500;
                             " title="${arq.nome}">${arq.nome}</span>
                             <span style="
-                                font-size: 11px;
-                                color: white;
-                                background: ${arq.info.cor};
-                                padding: 2px 8px;
-                                border-radius: 4px;
-                                display: inline-block;
+                                font-size: 11px; 
+                                color: white; 
+                                background: ${arq.info.cor}; 
+                                padding: 2px 8px; 
+                                border-radius: 4px; 
+                                display: inline-block; 
                                 margin-top: 4px;
                             ">${extensao}</span>
                         </div>
                     </div>
                     <a href="${arq.url}" target="_blank" download style="
-                        background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
-                        color: white;
-                        padding: 8px 16px;
-                        border-radius: 8px;
-                        text-decoration: none;
-                        font-size: 12px;
-                        font-weight: 600;
+                        background: linear-gradient(135deg, #28a745 0%, #20c997 100%); 
+                        color: white; 
+                        padding: 8px 16px; 
+                        border-radius: 8px; 
+                        text-decoration: none; 
+                        font-size: 12px; 
+                        font-weight: 600; 
                         margin-left: 12px;
-                        white-space: nowrap;
                     ">⬇️ Download</a>
                 </div>
             `;
         });
-
+        
         secaoHtml += '</div>';
         return secaoHtml;
     }
-
+    
     // Renderizar seções na ordem de importância
     html += renderizarSecao('Embroidery Files', '🧵', arquivosPorCategoria.bordado, '#f8f4ff');
     html += renderizarSecao('Documents', '📄', arquivosPorCategoria.documento, '#fff8f0');
     html += renderizarSecao('Images', '🖼️', arquivosPorCategoria.imagem, '#f0f8ff');
     html += renderizarSecao('Other Files', '📁', arquivosPorCategoria.outro, '#f5f5f5');
-
+    
     // Mensagem se não houver arquivos
     if (!dados.arquivos || dados.arquivos.length === 0) {
         html += `
@@ -720,54 +686,54 @@ function mostrarModalArquivos(dados) {
             </div>
         `;
     }
-
+    
     html += '</div>'; // Fecha conteúdo
-
+    
     // Footer com botões
     html += `
         <div style="
-            padding: 20px 25px;
-            border-top: 1px solid #e9ecef;
-            display: flex;
-            gap: 12px;
+            padding: 20px 25px; 
+            border-top: 1px solid #e9ecef; 
+            display: flex; 
+            gap: 12px; 
             justify-content: center;
             background: #fafafa;
         ">
     `;
-
+    
     if (dados.arquivos && dados.arquivos.length > 0) {
         html += `
             <button onclick="baixarTodosArquivos(${dados.pedido_id})" style="
-                background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
-                color: white;
-                border: none;
-                padding: 12px 24px;
-                border-radius: 10px;
-                cursor: pointer;
-                font-weight: 600;
+                background: linear-gradient(135deg, #28a745 0%, #20c997 100%); 
+                color: white; 
+                border: none; 
+                padding: 12px 24px; 
+                border-radius: 10px; 
+                cursor: pointer; 
+                font-weight: 600; 
                 font-size: 14px;
             ">⬇️ Download All</button>
         `;
     }
-
+    
     html += `
             <button onclick="fecharModalArquivos()" style="
-                background: #6c757d;
-                color: white;
-                border: none;
-                padding: 12px 24px;
-                border-radius: 10px;
-                cursor: pointer;
-                font-weight: 500;
+                background: #6c757d; 
+                color: white; 
+                border: none; 
+                padding: 12px 24px; 
+                border-radius: 10px; 
+                cursor: pointer; 
+                font-weight: 500; 
                 font-size: 14px;
             ">✕ Close</button>
         </div>
     </div>
     </div>`;
-
+    
     // Inserir modal no DOM
     document.body.insertAdjacentHTML('beforeend', html);
-
+    
     // Fechar ao clicar fora
     document.getElementById('modal-arquivos-finais').addEventListener('click', function(e) {
         if (e.target === this) {
@@ -781,8 +747,6 @@ window.fecharModalArquivos = function() {
     if (modal) {
         modal.remove();
     }
-    // NOVO: Remover classe de bloqueio do body
-    document.body.classList.remove('modal-arquivos-aberto');
 };
 
 window.baixarTodosArquivos = function(pedidoId) {
@@ -802,25 +766,25 @@ jQuery(document).ready(function($) {
     console.log('=== Sistema de Bordados Carregado COM TOAST ===');
     console.log('jQuery:', typeof $);
     console.log('bordados_ajax:', window.bordados_ajax);
-
+    
     // Aguardar Toast estar disponível antes de configurar eventos críticos
     aguardarToast(function() {
         console.log('🍞 Toast disponível, configurando eventos...');
-
+        
         // SUBMISSÃO DO FORMULÁRIO DE NOVO PEDIDO - COM TOAST
         $('#form-novo-pedido').on('submit', function(e) {
             e.preventDefault();
             console.log('Form novo pedido submetido');
-
+            
             const formData = new FormData(this);
             formData.append('action', 'criar_pedido');
-
+            
             // 🍞 Limpar mensagens anteriores e mostrar loading
             if (typeof window.BordadosToast !== 'undefined') {
                 window.BordadosToast.clear();
                 window.BordadosToast.info('Enviando pedido...', 'Aguarde', { duration: 0 });
             }
-
+            
             $.ajax({
                 url: bordados_ajax.ajax_url,
                 type: 'POST',
@@ -832,14 +796,14 @@ jQuery(document).ready(function($) {
                     if (typeof window.BordadosToast !== 'undefined') {
                         window.BordadosToast.clear();
                     }
-
+                    
                     if (response.success) {
                         // 🍞 Toast de sucesso
                         mostrarMensagem('success', 'Order Created!', response.data.message);
-
+                        
                         // Reset do formulário
                         document.getElementById('form-novo-pedido').reset();
-
+                        
                         // Reset upload counters
                         window.uploadCount = 1;
                         document.querySelectorAll('.upload-item').forEach((item, index) => {
@@ -852,10 +816,10 @@ jQuery(document).ready(function($) {
                         });
                         const addBtn = document.getElementById('btn-add-upload');
                         if (addBtn) addBtn.style.display = 'block';
-
+                        
                         // Scroll para o topo para ver o toast
                         window.scrollTo({ top: 0, behavior: 'smooth' });
-
+                        
                     } else {
                         // 🍞 Toast de erro
                         mostrarMensagem('error', 'Erro ao Criar Pedido', response.data);
@@ -863,50 +827,50 @@ jQuery(document).ready(function($) {
                 },
                 error: function(xhr, status, error) {
                     console.error('Erro AJAX:', xhr.responseText);
-
+                    
                     // 🍞 Limpar loading toast
                     if (typeof window.BordadosToast !== 'undefined') {
                         window.BordadosToast.clear();
                     }
-
+                    
                     mostrarMensagem('error', 'Erro de Comunicação', 'Erro de conexão com o servidor');
                 }
             });
         });
     });
-
+    
     // SUBMISSÃO DO FORMULÁRIO DE ENTREGA - COM TOAST
     $('#form-entrega').on('submit', function(e) {
         e.preventDefault();
         console.log('Form entrega submetido');
-
+        
         var pedidoId = $('#pedido-id-entrega').val();
         var precoProgr = $('#preco-programador').val();
         var numeroPontos = $('#numero-pontos').val();
         var obsProgr = $('#obs-programador').val();
-
+        
         if (!precoProgr || precoProgr <= 0) {
             mostrarMensagem('warning', 'Price Required', 'Please enter the price.');
             return;
         }
-
+        
         if (!numeroPontos || numeroPontos <= 0) {
             mostrarMensagem('warning', 'Stitch Count Required', 'Please enter the stitch count.');
             return;
         }
-
+        
         var temArquivo = false;
         $('input[name="arquivos_finais[]"]').each(function() {
             if (this.files && this.files.length > 0) {
                 temArquivo = true;
             }
         });
-
+        
         if (!temArquivo) {
             mostrarMensagem('warning', 'File Required', 'Please select at least one final file.');
             return;
         }
-
+        
         var formData = new FormData(this);
         formData.append('action', 'finalizar_trabalho');
         formData.append('pedido_id', pedidoId);
@@ -914,9 +878,9 @@ jQuery(document).ready(function($) {
         formData.append('numero_pontos', numeroPontos);
         formData.append('observacoes_programador', obsProgr);
         formData.append('nonce', bordados_ajax.nonce);
-
+        
         $('#form-entrega button[type="submit"]').prop('disabled', true).text('📤 Finishing...');
-
+        
         $.ajax({
             url: bordados_ajax.ajax_url,
             type: 'POST',
@@ -942,7 +906,7 @@ jQuery(document).ready(function($) {
             }
         });
     });
-
+    
     // EVENTOS GLOBAIS
     $(document).on('keydown', function(e) {
         if (e.keyCode === 27) { // ESC
@@ -951,7 +915,7 @@ jQuery(document).ready(function($) {
             window.fecharModalArquivos();
         }
     });
-
+    
     $(window).on('click', function(e) {
         if ($(e.target).is('#modal-entrega')) {
             window.fecharModal();
@@ -960,40 +924,38 @@ jQuery(document).ready(function($) {
             window.fecharModalArquivos();
         }
     });
-
-    // Corrigir botões após carregar - COM Z-INDEX MENOR QUE O MODAL
+    
+    // Corrigir botões após carregar
     setTimeout(function() {
         corrigirBotoesAcoes();
     }, 500);
 });
 
 // ======================================
-// CORREÇÃO PARA BOTÕES NÃO CLICÁVEIS (AJUSTADO v3.3.1)
-// Z-index menor que o modal para não sobrepor
+// CORREÇÃO PARA BOTÕES NÃO CLICÁVEIS (mantida original)
 // ======================================
 
 function corrigirBotoesAcoes() {
     console.log('🔧 Corrigindo botões da coluna ações...');
-
-    // AJUSTADO: z-index menor para não sobrepor o modal
+    
     document.querySelectorAll('a[onclick*="baixarArquivos"]').forEach(function(btn, index) {
         btn.style.pointerEvents = 'auto';
         btn.style.cursor = 'pointer';
-        btn.style.zIndex = '100'; // Reduzido de 9999 para 100
+        btn.style.zIndex = '9999';
         btn.style.position = 'relative';
         btn.style.display = 'inline-block';
         console.log('✅ Botão baixar', index + 1, 'corrigido');
     });
-
+    
     document.querySelectorAll('a[onclick*="mostrarArquivos"]').forEach(function(btn, index) {
         btn.style.pointerEvents = 'auto';
         btn.style.cursor = 'pointer';
-        btn.style.zIndex = '100'; // Reduzido de 9999 para 100
+        btn.style.zIndex = '9999';
         btn.style.position = 'relative';
         btn.style.display = 'inline-block';
         console.log('✅ Botão ver', index + 1, 'corrigido');
     });
-
+    
     console.log('🎉 Correção de botões concluída!');
 }
 
@@ -1009,7 +971,7 @@ setTimeout(corrigirBotoesAcoes, 1000);
 window.addEventListener('load', function() {
     console.log('=== Página totalmente carregada COM TOAST ===');
     console.log('Toast disponível:', typeof window.BordadosToast !== 'undefined');
-
+    
     // Teste do Toast (apenas para debug - DESABILITADO por padrão)
     if (typeof window.BordadosToast !== 'undefined' && false) { // Mudar para true para testar
         setTimeout(() => {
@@ -1018,4 +980,4 @@ window.addEventListener('load', function() {
     }
 });
 
-console.log('=== JavaScript carregado COM INTEGRAÇÃO TOAST (v3.3.1) ===');
+console.log('=== JavaScript carregado COM INTEGRAÇÃO TOAST ===');

@@ -1346,3 +1346,172 @@ a[onclick*="mostrarArquivos"] {
         margin: 0 -5px;
     }
 }
+/* =============================================
+   CSS RESPONSIVO MOBILE - SISTEMA BORDADOS
+   v3.3.1 - Cards para Mobile
+   ============================================= */
+
+@media screen and (max-width: 900px) {
+    
+    .bordados-dashboard-cliente .bordados-table thead {
+        display: none;
+    }
+    
+    .bordados-dashboard-cliente .bordados-table,
+    .bordados-dashboard-cliente .bordados-table tbody {
+        display: block;
+        width: 100%;
+    }
+    
+    .bordados-dashboard-cliente .bordados-table tbody tr.linha-pedido:not(.detalhes-pedido) {
+        display: block;
+        background: #fff;
+        border-radius: 12px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        margin-bottom: 15px;
+        padding: 15px;
+        position: relative;
+        border-left: 4px solid #667eea;
+    }
+    
+    .bordados-dashboard-cliente .bordados-table tbody tr.detalhes-pedido {
+        display: none !important;
+    }
+    
+    .bordados-dashboard-cliente .bordados-table tbody td {
+        display: block;
+        padding: 5px 0;
+        border: none;
+        text-align: left !important;
+    }
+    
+    .bordados-dashboard-cliente .bordados-table tbody td:nth-child(1) {
+        position: absolute;
+        top: 10px;
+        right: 10px;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 4px 10px !important;
+        border-radius: 15px;
+        font-size: 12px;
+        font-weight: bold;
+    }
+    
+    .bordados-dashboard-cliente .bordados-table tbody td:nth-child(2) {
+        float: left;
+        width: 70px;
+        margin-right: 15px;
+        margin-bottom: 10px;
+    }
+    
+    .bordados-dashboard-cliente .bordados-table tbody td:nth-child(2) img {
+        width: 70px !important;
+        height: 70px !important;
+        object-fit: cover;
+        border-radius: 8px;
+    }
+    
+    .bordados-dashboard-cliente .bordados-table tbody td:nth-child(3) {
+        font-size: 16px;
+        font-weight: 600;
+        color: #2c3e50;
+        padding-top: 0 !important;
+        padding-right: 60px;
+        min-height: 50px;
+    }
+    
+    .bordados-dashboard-cliente .bordados-table tbody td:nth-child(4) {
+        clear: both;
+        font-size: 13px;
+        color: #666;
+    }
+    
+    .bordados-dashboard-cliente .bordados-table tbody td:nth-child(4)::before {
+        content: "📐 ";
+    }
+    
+    .bordados-dashboard-cliente .bordados-table tbody td:nth-child(5) {
+        font-size: 13px;
+    }
+    
+    .bordados-dashboard-cliente .bordados-table tbody td:nth-child(5)::before {
+        content: "⏱️ Turnaround: ";
+        color: #666;
+    }
+    
+    .bordados-dashboard-cliente .bordados-table tbody td:nth-child(6) {
+        margin: 10px 0;
+    }
+    
+    .bordados-dashboard-cliente .bordados-table tbody td:nth-child(7) {
+        font-size: 12px;
+        color: #999;
+    }
+    
+    .bordados-dashboard-cliente .bordados-table tbody td:nth-child(7)::before {
+        content: "📅 Created: ";
+    }
+    
+    .bordados-dashboard-cliente .bordados-table tbody td:nth-child(8) {
+        margin-top: 15px;
+        padding-top: 15px !important;
+        border-top: 1px solid #eee;
+        text-align: center !important;
+        clear: both;
+    }
+    
+    .bordados-dashboard-cliente .bordados-table tbody td:nth-child(8) .button,
+    .bordados-dashboard-cliente .bordados-table tbody td:nth-child(8) a.button {
+        display: inline-block;
+        padding: 12px 20px !important;
+        font-size: 14px !important;
+        margin: 5px !important;
+        min-width: 120px;
+    }
+    
+    .bordados-dashboard-cliente .bordados-table tbody td:nth-child(8) .button-primary {
+        background: linear-gradient(135deg, #28a745 0%, #20c997 100%) !important;
+        border: none !important;
+        box-shadow: 0 4px 15px rgba(40, 167, 69, 0.3) !important;
+    }
+    
+    .bordados-dashboard-cliente .bordados-table tbody tr[data-status="pronto"] {
+        border-left-color: #28a745;
+    }
+    
+    .bordados-dashboard-cliente .bordados-table tbody tr[data-status="em_producao"] {
+        border-left-color: #007bff;
+    }
+    
+    .bordados-dashboard-cliente .bordados-table tbody tr[data-status="atribuido"] {
+        border-left-color: #ffc107;
+    }
+    
+    .bordados-dashboard-cliente .bordados-table tbody tr[data-status="novo"] {
+        border-left-color: #6f42c1;
+    }
+    
+    .bordados-dashboard-cliente > div[style*="grid-template-columns"] {
+        grid-template-columns: repeat(2, 1fr) !important;
+        gap: 10px !important;
+    }
+    
+    .bordados-dashboard-cliente > div[style*="text-align: right"] {
+        text-align: center !important;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+    }
+    
+    .bordados-dashboard-cliente > div[style*="text-align: right"] a {
+        margin: 0 !important;
+        width: 100%;
+        text-align: center;
+    }
+}
+
+@media screen and (max-width: 480px) {
+    .bordados-dashboard-cliente > div[style*="grid-template-columns"] {
+        grid-template-columns: 1fr !important;
+    }
+}
