@@ -1515,3 +1515,70 @@ a[onclick*="mostrarArquivos"] {
         grid-template-columns: 1fr !important;
     }
 }
+
+/* =============================================
+   BLOQUEIO TOTAL QUANDO MODAL ESTÁ ABERTO
+   v3.3.2 - Correção de sobreposição
+   ============================================= */
+
+/* Quando o modal está aberto, esconder TUDO atrás */
+body.modal-arquivos-aberto .bordados-dashboard-cliente,
+body.modal-arquivos-aberto .bordados-table,
+body.modal-arquivos-aberto .bordados-table * {
+    pointer-events: none !important;
+    z-index: 1 !important;
+}
+
+/* Modal sempre no topo absoluto */
+#modal-arquivos-finais {
+    z-index: 2147483647 !important;
+    position: fixed !important;
+}
+
+#modal-arquivos-finais * {
+    pointer-events: auto !important;
+}
+
+/* Forçar overlay escuro */
+#modal-arquivos-finais::before {
+    content: '';
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0,0,0,0.9);
+    z-index: -1;
+}
+
+/* =============================================
+   OVERRIDE ESPECÍFICO PARA MODAL (v3.3.2)
+   Sobrescreve os z-index problemáticos
+   ============================================= */
+
+/* Quando modal aberto: desativar TODOS os z-index altos dos botões */
+body.modal-arquivos-aberto .bordados-table td:last-child,
+body.modal-arquivos-aberto .bordados-table td:last-child *,
+body.modal-arquivos-aberto .bordados-table td:last-child a,
+body.modal-arquivos-aberto .bordados-table td:last-child button,
+body.modal-arquivos-aberto .bordados-table td:last-child [onclick],
+body.modal-arquivos-aberto .bordados-table td:last-child .button,
+body.modal-arquivos-aberto a[onclick*="baixarArquivos"],
+body.modal-arquivos-aberto a[onclick*="mostrarArquivos"],
+body.modal-arquivos-aberto .btn-baixar-arquivos,
+body.modal-arquivos-aberto .btn-ver-arquivos,
+body.modal-arquivos-aberto .button-download {
+    pointer-events: none !important;
+    z-index: 1 !important;
+}
+
+/* Garantir que TUDO na página fique atrás do modal */
+body.modal-arquivos-aberto * {
+    z-index: auto !important;
+}
+
+body.modal-arquivos-aberto #modal-arquivos-finais,
+body.modal-arquivos-aberto #modal-arquivos-finais * {
+    z-index: 2147483647 !important;
+    pointer-events: auto !important;
+}
