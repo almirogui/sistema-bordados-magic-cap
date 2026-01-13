@@ -376,7 +376,7 @@ class Bordados_Programador_Dashboard {
         
         // Content
         $html .= '<div class="pedido-content">';
-        $html .= '<div><strong>Customer:</strong> Puncher.com</div>';
+        $html .= '<div><strong>Cliente:</strong> ' . esc_html($cliente->display_name) . '</div>';
         
         if ($pedido->observacoes) {
             $html .= '<div class="pedido-observacoes">';

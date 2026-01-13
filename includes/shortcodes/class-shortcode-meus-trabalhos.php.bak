@@ -52,7 +52,7 @@ class Bordados_Shortcode_Meus_Trabalhos {
 
                     <!-- Coluna das informações -->
                     <div style="flex: 1;">
-                        <p><strong>Customer:</strong> Puncher.com</p>
+                        <p><strong>Customer:</strong> <?php echo esc_html($pedido->cliente_nome); ?></p>
                         <p><strong>Dimensions:</strong> <?php echo Bordados_Helpers::formatar_dimensoes($pedido); ?></p>
                         <?php if (!empty($pedido->cores)): ?>
                             <p><strong>Colors:</strong> <?php echo esc_html($pedido->cores); ?></p>

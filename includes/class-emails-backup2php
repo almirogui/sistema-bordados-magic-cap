@@ -7,7 +7,6 @@
  * - Suporte a CC para email_secundario (2026-01-09)
  * - Suporte a múltiplos emails separados por vírgula no campo secundário
  * - NOVO: Confirmação de pedido para cliente (inglês) e admin (português) (2026-01-10)
- * - NOVO: Ocultar nome do cliente do programador + Email com downloads categorizados (2026-01-14) v3.3.2
  */
 
 if (!defined('ABSPATH')) {
@@ -507,7 +506,6 @@ class Bordados_Emails {
     /**
      * Notificar programador sobre novo trabalho atribuído
      * (Sem CC - email interno)
-     * ✅ CORRIGIDO v3.3.2: Cliente oculto do programador
      */
     public static function notificar_programador_novo_trabalho($pedido_id) {
         global $wpdb;
@@ -542,8 +540,8 @@ class Bordados_Emails {
                 <td style='border: 1px solid #ddd; padding: 8px;'>#{$pedido->id}</td>
             </tr>
             <tr>
-                <td style='border: 1px solid #ddd; padding: 8px; background: #f8f9fa;'><strong>Customer:</strong></td>
-                <td style='border: 1px solid #ddd; padding: 8px;'>Puncher.com</td>
+                <td style='border: 1px solid #ddd; padding: 8px; background: #f8f9fa;'><strong>Client:</strong></td>
+                <td style='border: 1px solid #ddd; padding: 8px;'>{$pedido->cliente_nome}</td>
             </tr>
             <tr>
                 <td style='border: 1px solid #ddd; padding: 8px; background: #f8f9fa;'><strong>Design:</strong></td>
@@ -571,7 +569,6 @@ class Bordados_Emails {
 
     /**
      * Enviar email de novo trabalho (alias)
-     * ✅ CORRIGIDO v3.3.2: Cliente oculto do programador
      */
     public static function enviar_email_novo_trabalho($email, $nome, $dados) {
         $assunto = 'New Work Assigned - Order #' . $dados['pedido_id'];
@@ -586,8 +583,8 @@ class Bordados_Emails {
                 <td style='border: 1px solid #ddd; padding: 8px;'>#{$dados['pedido_id']}</td>
             </tr>
             <tr>
-                <td style='border: 1px solid #ddd; padding: 8px; background: #f8f9fa;'><strong>Customer:</strong></td>
-                <td style='border: 1px solid #ddd; padding: 8px;'>Puncher.com</td>
+                <td style='border: 1px solid #ddd; padding: 8px; background: #f8f9fa;'><strong>Client:</strong></td>
+                <td style='border: 1px solid #ddd; padding: 8px;'>{$dados['cliente_nome']}</td>
             </tr>
             <tr>
                 <td style='border: 1px solid #ddd; padding: 8px; background: #f8f9fa;'><strong>Design:</strong></td>
@@ -613,7 +610,6 @@ class Bordados_Emails {
 
     /**
      * Template: Email novo trabalho
-     * ✅ CORRIGIDO v3.3.2: Cliente oculto do programador
      */
     private static function template_novo_trabalho($programador, $cliente, $pedido_id, $dados_pedido) {
         $cores = isset($dados_pedido['cores']) ? $dados_pedido['cores'] : '';
@@ -729,203 +725,77 @@ class Bordados_Emails {
 
     /**
      * Template: Email trabalho concluído
-     * ✅ NOVO v3.3.2: Downloads categorizados por tipo de arquivo + imagem inline
      */
     private static function template_trabalho_concluido($pedido, $cliente, $arquivos_finais) {
-        
-        // Usar preco_final se disponível, senão usar preco_programador
-        $preco_exibir = !empty($pedido->preco_final) ? $pedido->preco_final : (!empty($pedido->preco_programador) ? $pedido->preco_programador : 0);
-        
-        // Observações do programador
-        $observacoes_prog = !empty($pedido->observacoes_programador) ? $pedido->observacoes_programador : '';
-        
-        // ============================================================
-        // CATEGORIZAR ARQUIVOS POR TIPO
-        // ============================================================
-        
-        $arquivo_emb = null;
-        $arquivo_maquina = null;
-        $arquivo_pdf = null;
-        $arquivo_imagem = null;
-        
-        $extensoes_maquina = array('dst', 'pes', 'jef', 'exp', 'vp3', 'hus', 'pec', 'pcs', 'sew', 'xxx');
-        $extensoes_imagem = array('jpg', 'jpeg', 'png', 'gif', 'webp');
-        
+        // Lista de arquivos para download
+        $lista_arquivos = '';
         if (is_array($arquivos_finais) && !empty($arquivos_finais)) {
-            foreach ($arquivos_finais as $arquivo) {
-                $extensao = strtolower(pathinfo($arquivo, PATHINFO_EXTENSION));
+            foreach ($arquivos_finais as $index => $arquivo) {
+                $nome_arquivo = basename($arquivo);
                 $arquivo_https = Bordados_Helpers::forcar_https($arquivo);
-                
-                if ($extensao === 'emb' && !$arquivo_emb) {
-                    $arquivo_emb = $arquivo_https;
-                } elseif (in_array($extensao, $extensoes_maquina) && !$arquivo_maquina) {
-                    $arquivo_maquina = array('url' => $arquivo_https, 'extensao' => strtoupper($extensao));
-                } elseif ($extensao === 'pdf' && !$arquivo_pdf) {
-                    $arquivo_pdf = $arquivo_https;
-                } elseif (in_array($extensao, $extensoes_imagem) && !$arquivo_imagem) {
-                    $arquivo_imagem = $arquivo_https;
-                }
+                $lista_arquivos .= '<li><a href="' . esc_url($arquivo_https) . '" target="_blank">📎 ' . $nome_arquivo . '</a></li>';
             }
         }
-        
-        // ============================================================
-        // MONTAR HTML DO EMAIL
-        // ============================================================
-        
-        $html = "
-        <div style='font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;'>
-            <div style='background: linear-gradient(135deg, #28a745 0%, #20c997 100%); padding: 30px; text-align: center; border-radius: 10px 10px 0 0;'>
-                <h1 style='color: white; margin: 0; font-size: 24px;'>🎉 Your embroidery is ready!</h1>
-            </div>
-            <div style='background: #f8f9fa; padding: 30px; border: 1px solid #e0e0e0;'>
-                <p style='font-size: 16px;'>Hello <strong>{$cliente->display_name}</strong>,</p>
-                <p>Great news! Your embroidery order has been completed and is now available for download.</p>
-        ";
-        
-        // Imagem do bordado inline
-        if ($arquivo_imagem) {
-            $html .= "
-                <div style='text-align: center; margin: 25px 0;'>
-                    <img src='{$arquivo_imagem}' alt='Embroidery Preview' style='max-width: 300px; width: 100%; height: auto; border-radius: 10px; border: 3px solid #e0e0e0; box-shadow: 0 4px 15px rgba(0,0,0,0.1);'>
-                </div>
-            ";
-        }
-        
-        // Tabela de detalhes
-        $html .= "
-                <table style='border-collapse: collapse; width: 100%; margin: 20px 0;'>
-                    <tr>
-                        <td style='border: 1px solid #ddd; padding: 12px; background: #f8f9fa; width: 35%;'><strong>Order:</strong></td>
-                        <td style='border: 1px solid #ddd; padding: 12px;'><strong style='color: #28a745;'>#{$pedido->id}</strong></td>
-                    </tr>
-                    <tr>
-                        <td style='border: 1px solid #ddd; padding: 12px; background: #f8f9fa;'><strong>Design:</strong></td>
-                        <td style='border: 1px solid #ddd; padding: 12px;'>{$pedido->nome_bordado}</td>
-                    </tr>
-                    <tr>
-                        <td style='border: 1px solid #ddd; padding: 12px; background: #f8f9fa;'><strong>Status:</strong></td>
-                        <td style='border: 1px solid #ddd; padding: 12px;'><span style='background: #d4edda; color: #155724; padding: 5px 12px; border-radius: 15px; font-size: 13px;'>🎉 Ready</span></td>
-                    </tr>
-                    <tr>
-                        <td style='border: 1px solid #ddd; padding: 12px; background: #f8f9fa;'><strong>Price:</strong></td>
-                        <td style='border: 1px solid #ddd; padding: 12px;'><strong style='font-size: 18px; color: #28a745;'>$ " . number_format($preco_exibir, 2) . "</strong></td>
-                    </tr>
-                </table>
-        ";
-        
-        // Seção de downloads
-        $html .= "
-                <div style='background: #e8f5e9; padding: 25px; border-radius: 10px; margin: 25px 0;'>
-                    <h3 style='margin: 0 0 20px 0; color: #2e7d32; font-size: 18px;'>📥 Download Your Files:</h3>
-        ";
-        
-        $btn_style = "display: inline-block; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 10px 20px; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 13px;";
-        
-        // EMB
-        if ($arquivo_emb) {
-            $html .= "
-                    <div style='background: white; padding: 15px; border-radius: 8px; margin-bottom: 12px; border: 1px solid #c8e6c9;'>
-                        <table style='width: 100%;'><tr>
-                            <td style='vertical-align: middle;'>
-                                <span style='font-size: 24px; margin-right: 10px;'>🧵</span>
-                                <strong style='color: #333;'>Native Design File</strong>
-                                <br><small style='color: #666; margin-left: 34px;'>Wilcom EMB - Editable source file</small>
-                            </td>
-                            <td style='text-align: right; vertical-align: middle;'>
-                                <a href='{$arquivo_emb}' target='_blank' style='{$btn_style}'>⬇️ Download EMB</a>
-                            </td>
-                        </tr></table>
-                    </div>
-            ";
-        }
-        
-        // Machine file (DST, PES, etc.)
-        if ($arquivo_maquina) {
-            $html .= "
-                    <div style='background: white; padding: 15px; border-radius: 8px; margin-bottom: 12px; border: 1px solid #c8e6c9;'>
-                        <table style='width: 100%;'><tr>
-                            <td style='vertical-align: middle;'>
-                                <span style='font-size: 24px; margin-right: 10px;'>🪡</span>
-                                <strong style='color: #333;'>Machine File</strong>
-                                <br><small style='color: #666; margin-left: 34px;'>{$arquivo_maquina['extensao']} format - Ready for your machine</small>
-                            </td>
-                            <td style='text-align: right; vertical-align: middle;'>
-                                <a href='{$arquivo_maquina['url']}' target='_blank' style='{$btn_style}'>⬇️ Download {$arquivo_maquina['extensao']}</a>
-                            </td>
-                        </tr></table>
-                    </div>
-            ";
-        }
-        
-        // PDF
-        if ($arquivo_pdf) {
-            $html .= "
-                    <div style='background: white; padding: 15px; border-radius: 8px; margin-bottom: 12px; border: 1px solid #c8e6c9;'>
-                        <table style='width: 100%;'><tr>
-                            <td style='vertical-align: middle;'>
-                                <span style='font-size: 24px; margin-right: 10px;'>📄</span>
-                                <strong style='color: #333;'>Production Sheet</strong>
-                                <br><small style='color: #666; margin-left: 34px;'>PDF with thread colors and specifications</small>
-                            </td>
-                            <td style='text-align: right; vertical-align: middle;'>
-                                <a href='{$arquivo_pdf}' target='_blank' style='{$btn_style}'>⬇️ Download PDF</a>
-                            </td>
-                        </tr></table>
-                    </div>
-            ";
-        }
-        
-        // Image
-        if ($arquivo_imagem) {
-            $html .= "
-                    <div style='background: white; padding: 15px; border-radius: 8px; margin-bottom: 0; border: 1px solid #c8e6c9;'>
-                        <table style='width: 100%;'><tr>
-                            <td style='vertical-align: middle;'>
-                                <span style='font-size: 24px; margin-right: 10px;'>🖼️</span>
-                                <strong style='color: #333;'>Preview Image</strong>
-                                <br><small style='color: #666; margin-left: 34px;'>High resolution preview</small>
-                            </td>
-                            <td style='text-align: right; vertical-align: middle;'>
-                                <a href='{$arquivo_imagem}' target='_blank' style='{$btn_style}'>⬇️ Download Image</a>
-                            </td>
-                        </tr></table>
-                    </div>
-            ";
-        }
-        
-        if (!$arquivo_emb && !$arquivo_maquina && !$arquivo_pdf && !$arquivo_imagem) {
-            $html .= "<div style='background: white; padding: 20px; border-radius: 8px; text-align: center; color: #666;'><p style='margin: 0;'>📭 No files available. Please contact support.</p></div>";
-        }
-        
-        $html .= "</div>";
-        
-        // Observações do programador
-        if (!empty($observacoes_prog)) {
-            $html .= "
-                <div style='background: #fff3e0; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #ff9800;'>
-                    <h4 style='margin: 0 0 10px 0; color: #e65100;'>💬 Digitizer Notes:</h4>
-                    <p style='margin: 0; color: #333;'>{$observacoes_prog}</p>
-                </div>
-            ";
-        }
-        
-        // Rodapé
-        $html .= "
-                <p style='text-align: center; margin: 30px 0;'>
-                    <a href='" . site_url('/meus-pedidos/') . "' style='background: linear-gradient(135deg, #28a745 0%, #20c997 100%); color: white; padding: 15px 35px; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 15px; display: inline-block;'>📥 Go to My Orders</a>
-                </p>
-                <p style='color: #666; font-size: 14px;'>If you have any questions about your files, simply reply to this email.</p>
-                <p>Thank you for choosing Puncher Digitizing!</p>
-                <p>Best regards,<br><strong>Puncher Digitizing Team</strong></p>
-            </div>
-            <div style='background: #333; color: #999; padding: 20px; text-align: center; border-radius: 0 0 10px 10px; font-size: 12px;'>
-                © " . date('Y') . " Puncher Embroidery Digitizing<br>
-                <a href='https://puncher.com' style='color: #667eea;'>www.puncher.com</a>
-            </div>
+
+        $observacoes_prog = !empty($pedido->observacoes_programador) ? $pedido->observacoes_programador : '';
+
+        // Usar preco_final se disponível, senão usar preco_programador
+        $preco_exibir = !empty($pedido->preco_final) ? $pedido->preco_final : (!empty($pedido->preco_programador) ? $pedido->preco_programador : 0);
+
+        return "
+        <h2>🎉 Your embroidery is ready!</h2>
+
+        <p>Hello <strong>Puncher.com</strong>,</p>
+
+        <p>Great news! Your embroidery order has been completed and is now available for download.</p>
+
+        <table style='border-collapse: collapse; width: 100%; margin: 20px 0;'>
+            <tr>
+                <td style='border: 1px solid #ddd; padding: 8px; background: #f8f9fa;'><strong>Order:</strong></td>
+                <td style='border: 1px solid #ddd; padding: 8px;'>#{$pedido->id}</td>
+            </tr>
+            <tr>
+                <td style='border: 1px solid #ddd; padding: 8px; background: #f8f9fa;'><strong>Design:</strong></td>
+                <td style='border: 1px solid #ddd; padding: 8px;'>{$pedido->nome_bordado}</td>
+            </tr>
+            <tr>
+                <td style='border: 1px solid #ddd; padding: 8px; background: #f8f9fa;'><strong>Status:</strong></td>
+                <td style='border: 1px solid #ddd; padding: 8px;'><span style='background: #e1f5fe; color: #0277bd; padding: 4px 8px; border-radius: 5px;'>🎉 Ready</span></td>
+            </tr>
+            <tr>
+                <td style='border: 1px solid #ddd; padding: 8px; background: #f8f9fa;'><strong>Price:</strong></td>
+                <td style='border: 1px solid #ddd; padding: 8px;'>$ " . number_format($preco_exibir, 2) . "</td>
+            </tr>
+        </table>
+
+        " . (!empty($lista_arquivos) ? "
+        <div style='background: #e8f5e9; padding: 15px; border-radius: 5px; margin: 20px 0;'>
+            <h3 style='margin: 0 0 10px 0; color: #2e7d32;'>📥 Download Files:</h3>
+            <ul style='margin: 0; padding-left: 20px;'>
+                {$lista_arquivos}
+            </ul>
         </div>
+        " : "") . "
+
+        " . (!empty($observacoes_prog) ? "
+        <div style='background: #fff3e0; padding: 15px; border-radius: 5px; margin: 20px 0;'>
+            <h3 style='margin: 0 0 10px 0; color: #e65100;'>💬 Digitizer Notes:</h3>
+            <p style='margin: 0;'>{$observacoes_prog}</p>
+        </div>
+        " : "") . "
+
+        <p style='text-align: center; margin: 30px 0;'>
+            <a href='" . site_url('/meus-pedidos/') . "'
+               style='background: #4caf50; color: white; padding: 15px 30px; text-decoration: none; border-radius: 5px; font-weight: bold;'>
+               📥 Go to My Orders
+            </a>
+        </p>
+
+        <p>Thank you for choosing Puncher Digitizing!</p>
+
+        <p>Best regards,<br>
+        <strong>Puncher Digitizing Team</strong></p>
         ";
-        
-        return $html;
     }
 
     /**
