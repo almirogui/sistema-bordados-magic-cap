@@ -2,7 +2,9 @@
 /**
  * Shortcode: Painel do Revisor - [bordados_painel_revisor]
  * 
- * ATUALIZADO v3.2.2: 
+ * ATUALIZADO v3.2.4: 
+ * - NOVO: Preserva preco_final existente ao reabrir modal (não recalcula se já definido)
+ * - CORREÇÃO: Verificar se elemento aprovacao-preco-programador existe antes de acessar
  * - Permissão para assistente_bordados
  * - Link para painel assistente
  * - Modal de solicitar acertos com upload de imagens (1-3)
@@ -471,13 +473,20 @@ class Bordados_Shortcode_Painel_Revisor {
         // ========================================
         // MODAL DE APROVAÇÃO
         // ========================================
-        function abrirModalAprovacao(pedidoId, nomeBordado, clienteNome, precoProgramador, clienteId, numeroPontos) {
+        // v3.2.4: Adicionado parâmetro precoFinalExistente para preservar preço já definido
+        function abrirModalAprovacao(pedidoId, nomeBordado, clienteNome, precoProgramador, clienteId, numeroPontos, precoFinalExistente) {
             document.getElementById('aprovacao-pedido-id').value = pedidoId;
             document.getElementById('aprovacao-info').innerHTML = 
                 '<strong>Pedido #' + pedidoId + ':</strong> ' + nomeBordado + '<br>' +
                 '<strong>Cliente:</strong> ' + clienteNome;
-            document.getElementById('aprovacao-preco-programador').value = precoProgramador ? 'R$ ' + parseFloat(precoProgramador).toFixed(2) : 'Não definido';
-            document.getElementById('aprovacao-preco-final').value = '';
+            
+            // v3.2.3 CORREÇÃO: Verificar se elemento existe antes de acessar
+            // (só existe para administrators)
+            var campoPrecoProgramador = document.getElementById('aprovacao-preco-programador');
+            if (campoPrecoProgramador) {
+                campoPrecoProgramador.value = precoProgramador ? 'R$ ' + parseFloat(precoProgramador).toFixed(2) : 'Não definido';
+            }
+            
             document.getElementById('aprovacao-obs').value = '';
             
             // Reset upload múltiplo
@@ -486,8 +495,17 @@ class Bordados_Shortcode_Painel_Revisor {
             
             document.getElementById('modal-aprovacao').style.display = 'flex';
             
-            // CALCULAR PREÇO AUTOMATICAMENTE via AJAX
+            // v3.2.4: SE JÁ EXISTE PREÇO FINAL DEFINIDO, USAR ELE (não recalcular)
+            if (precoFinalExistente && parseFloat(precoFinalExistente) > 0) {
+                document.getElementById('aprovacao-preco-final').value = parseFloat(precoFinalExistente).toFixed(2);
+                document.getElementById('aprovacao-preco-final').placeholder = 'Preço já definido anteriormente';
+                console.log('Usando preço final existente: ' + precoFinalExistente);
+                return; // Não recalcular
+            }
+            
+            // CALCULAR PREÇO AUTOMATICAMENTE via AJAX (só se não tiver preço definido)
             if (clienteId && numeroPontos && numeroPontos > 0) {
+                document.getElementById('aprovacao-preco-final').value = '';
                 document.getElementById('aprovacao-preco-final').placeholder = 'Calculando...';
                 
                 jQuery.ajax({
@@ -516,6 +534,7 @@ class Bordados_Shortcode_Painel_Revisor {
                 });
             } else {
                 document.getElementById('aprovacao-preco-final').value = precoProgramador || '';
+                document.getElementById('aprovacao-preco-final').placeholder = 'Informe o preço manualmente';
             }
         }
         
@@ -748,7 +767,7 @@ class Bordados_Shortcode_Painel_Revisor {
             
             <div style="display: flex; gap: 10px; margin-top: 15px;">
                 <?php if ($em_revisao): ?>
-                    <button onclick="abrirModalAprovacao(<?php echo $trabalho->id; ?>, '<?php echo esc_js($trabalho->nome_bordado); ?>', '<?php echo esc_js($trabalho->cliente_nome); ?>', '<?php echo esc_attr($trabalho->preco_programador); ?>', <?php echo intval($trabalho->cliente_id); ?>, <?php echo intval($trabalho->numero_pontos); ?>)" 
+                    <button onclick="abrirModalAprovacao(<?php echo $trabalho->id; ?>, '<?php echo esc_js($trabalho->nome_bordado); ?>', '<?php echo esc_js($trabalho->cliente_nome); ?>', '<?php echo esc_attr($trabalho->preco_programador); ?>', <?php echo intval($trabalho->cliente_id); ?>, <?php echo intval($trabalho->numero_pontos); ?>, '<?php echo esc_attr($trabalho->preco_final); ?>')" 
                             class="button button-primary" 
                             style="background: #28a745; border-color: #28a745;">
                         ✅ Aprovar e Entregar
