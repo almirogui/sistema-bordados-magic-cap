@@ -355,61 +355,146 @@ class Bordados_Ajax_Assistente {
     /**
      * AJAX: Salvar edição do pedido
      */
-    public function salvar_pedido() {
-        // Verificar nonce
-        if (!wp_verify_nonce($_POST['nonce'], 'bordados_nonce')) {
-            wp_send_json_error('Verificação de segurança falhou.');
-            return;
+    /**
+ * AJAX: Salvar edição do pedido
+ * ✅ ATUALIZADO: Notifica programador por email quando pedido é editado
+ */
+public function salvar_pedido() {
+    // Verificar nonce
+    if (!wp_verify_nonce($_POST['nonce'], 'bordados_nonce')) {
+        wp_send_json_error('Verificação de segurança falhou.');
+        return;
+    }
+    
+    // Verificar permissão
+    if (!$this->verificar_permissao()) {
+        wp_send_json_error('Acesso negado.');
+        return;
+    }
+    
+    $pedido_id = intval($_POST['pedido_id']);
+    
+    if (empty($pedido_id)) {
+        wp_send_json_error('ID do pedido inválido.');
+        return;
+    }
+    
+    global $wpdb;
+    $tabela = 'pedidos_basicos';
+    
+    // Buscar pedido atual para verificar mudança de programador
+    $pedido_atual = $wpdb->get_row($wpdb->prepare("SELECT * FROM $tabela WHERE id = %d", $pedido_id));
+    
+    if (!$pedido_atual) {
+        wp_send_json_error('Pedido não encontrado.');
+        return;
+    }
+    
+    // =====================================================
+    // NOVO: Rastrear campos alterados para notificação
+    // =====================================================
+    $campos_alterados = array();
+    
+    $novo_nome = sanitize_text_field($_POST['nome_bordado']);
+    $nova_largura = floatval($_POST['largura']);
+    $nova_altura = floatval($_POST['altura']);
+    $novas_cores = sanitize_text_field($_POST['cores']);
+    $novas_obs = sanitize_textarea_field($_POST['observacoes']);
+    
+    // Verificar quais campos foram alterados
+    if ($pedido_atual->nome_bordado !== $novo_nome) {
+        $campos_alterados[] = 'Design name: "' . $pedido_atual->nome_bordado . '" → "' . $novo_nome . '"';
+    }
+    if ((float)$pedido_atual->largura !== $nova_largura) {
+        $campos_alterados[] = 'Width: ' . $pedido_atual->largura . ' → ' . $nova_largura;
+    }
+    if ((float)$pedido_atual->altura !== $nova_altura) {
+        $campos_alterados[] = 'Height: ' . $pedido_atual->altura . ' → ' . $nova_altura;
+    }
+    if ($pedido_atual->cores !== $novas_cores) {
+        $campos_alterados[] = 'Colors: "' . $pedido_atual->cores . '" → "' . $novas_cores . '"';
+    }
+    if ($pedido_atual->observacoes !== $novas_obs) {
+        $campos_alterados[] = 'Instructions updated';
+    }
+    // =====================================================
+    
+    $dados = array(
+        'nome_bordado' => $novo_nome,
+        'largura' => $nova_largura,
+        'altura' => $nova_altura,
+        'cores' => $novas_cores,
+        'observacoes' => $novas_obs
+    );
+    
+    // Se programador foi alterado
+    $novo_programador = !empty($_POST['programador_id']) ? intval($_POST['programador_id']) : null;
+    $mudou_programador = false;
+    
+    if ($novo_programador && $novo_programador != $pedido_atual->programador_id) {
+        $dados['programador_id'] = $novo_programador;
+        $mudou_programador = true;
+        
+        if ($pedido_atual->status === 'novo') {
+            $dados['status'] = 'atribuido';
+            $dados['data_atribuicao'] = current_time('mysql');
         }
         
-        // Verificar permissão
-        if (!$this->verificar_permissao()) {
-            wp_send_json_error('Acesso negado.');
-            return;
-        }
+        // Adicionar mudança de programador à lista
+        $prog_antigo = $pedido_atual->programador_id ? get_userdata($pedido_atual->programador_id) : null;
+        $prog_novo = get_userdata($novo_programador);
+        $campos_alterados[] = 'Programmer changed: ' . 
+            ($prog_antigo ? $prog_antigo->display_name : 'None') . ' → ' . 
+            ($prog_novo ? $prog_novo->display_name : 'None');
+    }
+    
+    $resultado = $wpdb->update($tabela, $dados, array('id' => $pedido_id));
+    
+    if ($resultado === false) {
+        wp_send_json_error('Erro ao atualizar: ' . $wpdb->last_error);
+        return;
+    }
+    
+    // =====================================================
+    // NOVO: Enviar email para programador se houver alterações
+    // =====================================================
+    $email_enviado = false;
+    
+    if (!empty($campos_alterados) && class_exists('Bordados_Emails')) {
+        // Determinar qual programador notificar
+        $programador_notificar = $novo_programador ?: $pedido_atual->programador_id;
         
-        $pedido_id = intval($_POST['pedido_id']);
-        
-        if (empty($pedido_id)) {
-            wp_send_json_error('ID do pedido inválido.');
-            return;
-        }
-        
-        global $wpdb;
-        $tabela = 'pedidos_basicos';
-        
-        // Buscar pedido atual para verificar mudança de programador
-        $pedido_atual = $wpdb->get_row($wpdb->prepare("SELECT * FROM $tabela WHERE id = %d", $pedido_id));
-        
-        $dados = array(
-            'nome_bordado' => sanitize_text_field($_POST['nome_bordado']),
-            'largura' => floatval($_POST['largura']),
-            'altura' => floatval($_POST['altura']),
-            'cores' => sanitize_text_field($_POST['cores']),
-            'observacoes' => sanitize_textarea_field($_POST['observacoes'])
-        );
-        
-        // Se programador foi alterado
-        $novo_programador = !empty($_POST['programador_id']) ? intval($_POST['programador_id']) : null;
-        if ($novo_programador && $novo_programador != $pedido_atual->programador_id) {
-            $dados['programador_id'] = $novo_programador;
-            if ($pedido_atual->status === 'novo') {
-                $dados['status'] = 'atribuido';
-                $dados['data_atribuicao'] = current_time('mysql');
+        if (!empty($programador_notificar)) {
+            // Se mudou de programador, notificar o NOVO programador com email de novo trabalho
+            if ($mudou_programador && $novo_programador) {
+                // Notificar novo programador com email de "novo trabalho"
+                if (method_exists('Bordados_Emails', 'notificar_programador_novo_trabalho')) {
+                    Bordados_Emails::notificar_programador_novo_trabalho($pedido_id);
+                    error_log("📧 Email de ATRIBUIÇÃO enviado para novo programador - Pedido #{$pedido_id}");
+                }
+            } else {
+                // Notificar programador atual sobre EDIÇÃO
+                if (method_exists('Bordados_Emails', 'notificar_programador_edicao')) {
+                    $email_enviado = Bordados_Emails::notificar_programador_edicao($pedido_id, $campos_alterados);
+                    error_log("📧 Email de EDIÇÃO enviado para programador - Pedido #{$pedido_id}");
+                } else {
+                    error_log("⚠️ Método notificar_programador_edicao não encontrado em Bordados_Emails");
+                }
             }
         }
-        
-        $resultado = $wpdb->update($tabela, $dados, array('id' => $pedido_id));
-        
-        if ($resultado === false) {
-            wp_send_json_error('Erro ao atualizar: ' . $wpdb->last_error);
-            return;
-        }
-        
-        wp_send_json_success(array(
-            'message' => 'Pedido #' . $pedido_id . ' atualizado com sucesso!'
-        ));
     }
+    // =====================================================
+    
+    $mensagem = 'Pedido #' . $pedido_id . ' atualizado com sucesso!';
+    if ($email_enviado) {
+        $mensagem .= ' (Programador notificado por email)';
+    }
+    
+    wp_send_json_success(array(
+        'message' => $mensagem
+    ));
+}
+
     
     /**
      * AJAX: Formulário para editar cliente - EXPANDIDO

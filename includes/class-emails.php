@@ -561,6 +561,141 @@ class Bordados_Emails {
 
         return wp_mail($para, $assunto, $mensagem, $headers);
     }
+/**
+ * ============================================
+ * ADICIONAR A class-emails.php
+ * ============================================
+ * 
+ * Cole este método na classe Bordados_Emails
+ * (após o método notificar_programador_novo_trabalho)
+ * 
+ * @package Sistema_Bordados
+ * @since 3.3.3
+ * @date 2026-01-16
+ */
+
+/**
+ * NOVO: Notificar programador sobre edição no pedido
+ * 
+ * Envia email para o programador quando há alterações em um pedido
+ * que já está atribuído a ele.
+ * 
+ * @param int $pedido_id ID do pedido
+ * @param array $campos_alterados Lista de campos que foram modificados
+ * @return bool Sucesso do envio
+ */
+public static function notificar_programador_edicao($pedido_id, $campos_alterados = array()) {
+    global $wpdb;
+    
+    // Buscar dados do pedido com programador
+    $pedido = $wpdb->get_row($wpdb->prepare("
+        SELECT p.*, 
+               prog.user_email as programador_email,
+               prog.display_name as programador_nome
+        FROM pedidos_basicos p
+        LEFT JOIN {$wpdb->users} prog ON p.programador_id = prog.ID
+        WHERE p.id = %d
+    ", $pedido_id));
+    
+    // Verificar se tem programador atribuído
+    if (!$pedido || empty($pedido->programador_id) || empty($pedido->programador_email)) {
+        error_log("❌ Pedido #{$pedido_id} não tem programador atribuído - email de edição não enviado");
+        return false;
+    }
+    
+    // Dados do email
+    $para = $pedido->programador_email;
+    $assunto = '✏️ Order Updated - #' . $pedido_id . ' - ' . $pedido->nome_bordado;
+    
+    // Montar lista de alterações
+    $lista_alteracoes = '';
+    if (!empty($campos_alterados) && is_array($campos_alterados)) {
+        $lista_alteracoes = '<ul style="margin: 10px 0; padding-left: 20px;">';
+        foreach ($campos_alterados as $campo) {
+            $lista_alteracoes .= '<li style="margin: 5px 0;">' . esc_html($campo) . '</li>';
+        }
+        $lista_alteracoes .= '</ul>';
+    }
+    
+    // Template do email
+    $mensagem = "
+    <div style='font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;'>
+        <div style='background: linear-gradient(135deg, #f39c12 0%, #e67e22 100%); padding: 20px; text-align: center; border-radius: 10px 10px 0 0;'>
+            <h1 style='color: white; margin: 0; font-size: 24px;'>✏️ Order Updated</h1>
+        </div>
+        
+        <div style='background: #f9f9f9; padding: 30px; border: 1px solid #ddd;'>
+            <p style='font-size: 16px; color: #333;'>
+                Hello <strong>{$pedido->programador_nome}</strong>,
+            </p>
+            
+            <p style='font-size: 16px; color: #333;'>
+                An order assigned to you has been updated:
+            </p>
+            
+            <table style='border-collapse: collapse; width: 100%; margin: 20px 0; background: white; border-radius: 8px; overflow: hidden;'>
+                <tr>
+                    <td style='border: 1px solid #ddd; padding: 12px; background: #f8f9fa; width: 40%;'><strong>Order:</strong></td>
+                    <td style='border: 1px solid #ddd; padding: 12px;'><strong>#" . $pedido->id . "</strong></td>
+                </tr>
+                <tr>
+                    <td style='border: 1px solid #ddd; padding: 12px; background: #f8f9fa;'><strong>Design:</strong></td>
+                    <td style='border: 1px solid #ddd; padding: 12px;'>" . esc_html($pedido->nome_bordado) . "</td>
+                </tr>
+                <tr>
+                    <td style='border: 1px solid #ddd; padding: 12px; background: #f8f9fa;'><strong>Status:</strong></td>
+                    <td style='border: 1px solid #ddd; padding: 12px;'>" . esc_html(ucfirst($pedido->status)) . "</td>
+                </tr>
+            </table>
+            ";
+    
+    // Adicionar lista de alterações se houver
+    if (!empty($lista_alteracoes)) {
+        $mensagem .= "
+            <div style='background: #fff3cd; border: 1px solid #ffc107; border-radius: 8px; padding: 15px; margin: 20px 0;'>
+                <strong style='color: #856404;'>📝 Changes made:</strong>
+                {$lista_alteracoes}
+            </div>
+        ";
+    }
+    
+    $mensagem .= "
+            <p style='font-size: 14px; color: #666;'>
+                Please review the updated details in your panel.
+            </p>
+            
+            <p style='text-align: center; margin: 30px 0;'>
+                <a href='" . site_url('/painel-programador/') . "' 
+                   style='background: #f39c12; color: white; padding: 15px 30px; text-decoration: none; border-radius: 5px; font-weight: bold; display: inline-block;'>
+                   👁️ View Updated Order
+                </a>
+            </p>
+        </div>
+        
+        <div style='background: #333; color: #999; padding: 20px; text-align: center; border-radius: 0 0 10px 10px; font-size: 12px;'>
+            Sistema de Bordados - Magic Cap<br>
+            Automatic notification
+        </div>
+    </div>
+    ";
+    
+    // Headers para HTML
+    $headers = array(
+        'Content-Type: text/html; charset=UTF-8',
+        'From: Puncher System <noreply@puncher.com>'
+    );
+    
+    // Enviar email
+    $enviado = wp_mail($para, $assunto, $mensagem, $headers);
+    
+    if ($enviado) {
+        error_log("✅ Email de edição enviado para programador {$pedido->programador_nome} ({$para}) - Pedido #{$pedido_id}");
+    } else {
+        error_log("❌ Falha ao enviar email de edição para {$para} - Pedido #{$pedido_id}");
+    }
+    
+    return $enviado;
+}
 
     /**
      * Enviar notificação de atribuição (alias)
