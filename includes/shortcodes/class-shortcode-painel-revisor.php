@@ -415,6 +415,17 @@ class Bordados_Shortcode_Painel_Revisor {
                 
                 <form id="form-aprovacao" enctype="multipart/form-data">
                     <input type="hidden" id="aprovacao-pedido-id" name="pedido_id">
+                    <input type="hidden" id="aprovacao-cliente-id">
+                    
+                    <!-- Número de Pontos (editável pelo revisor) -->
+                    <div style="margin-bottom: 20px;">
+                        <label><strong>🔢 Número de Pontos:</strong></label>
+                        <input type="number" id="aprovacao-numero-pontos" name="numero_pontos" 
+                               style="width: 100%; padding: 10px; border: 2px solid #667eea; border-radius: 5px;" 
+                               placeholder="Enter stitch count">
+                        <small style="color: #666;">💡 Changing this will automatically recalculate the price</small>
+                    </div>
+                    
                     <!-- Preços -->
                     <div style="display: grid; grid-template-columns: <?php echo current_user_can('administrator') ? '1fr 1fr' : '1fr'; ?>; gap: 15px; margin-bottom: 20px;">
                         <?php if (current_user_can('administrator')): ?>
@@ -474,8 +485,15 @@ class Bordados_Shortcode_Painel_Revisor {
         // MODAL DE APROVAÇÃO
         // ========================================
         // v3.2.4: Adicionado parâmetro precoFinalExistente para preservar preço já definido
+        // v3.3.6: Adicionado preenchimento de cliente_id e numero_pontos para recálculo
         function abrirModalAprovacao(pedidoId, nomeBordado, clienteNome, precoProgramador, clienteId, numeroPontos, precoFinalExistente) {
             document.getElementById('aprovacao-pedido-id').value = pedidoId;
+            
+            // v3.3.6: Preencher cliente_id e número de pontos para recálculo automático
+            window.aprovacaoClienteId = clienteId; // Variável global para o event listener
+            document.getElementById('aprovacao-cliente-id').value = clienteId;
+            document.getElementById('aprovacao-numero-pontos').value = numeroPontos || '';
+            
             document.getElementById('aprovacao-info').innerHTML = 
                 '<strong>Pedido #' + pedidoId + ':</strong> ' + nomeBordado + '<br>' +
                 '<strong>Cliente:</strong> ' + clienteNome;
@@ -541,6 +559,62 @@ class Bordados_Shortcode_Painel_Revisor {
         function fecharModalAprovacao() {
             document.getElementById('modal-aprovacao').style.display = 'none';
         }
+        
+        // ========================================
+        // RECÁLCULO DE PREÇO QUANDO REVISOR ALTERA PONTOS
+        // v3.3.6 - Correção #3
+        // ========================================
+        
+        // Event listener para recalcular quando mudar número de pontos
+        jQuery(document).on('input change', '#aprovacao-numero-pontos', function() {
+            var pontos = parseInt(jQuery(this).val());
+            
+            if (!pontos || pontos <= 0) {
+                jQuery('#aprovacao-preco-final').val('');
+                jQuery('#aprovacao-preco-final').attr('placeholder', 'Enter stitch count first');
+                return;
+            }
+            
+            // Verificar se temos cliente_id
+            var clienteId = window.aprovacaoClienteId || document.getElementById('aprovacao-cliente-id').value;
+            if (!clienteId) {
+                console.warn('⚠️ Cliente ID não disponível para recálculo');
+                return;
+            }
+            
+            // Mostrar "Recalculando..."
+            jQuery('#aprovacao-preco-final').val('');
+            jQuery('#aprovacao-preco-final').attr('placeholder', 'Recalculating...');
+            
+            console.log('🔄 Recalculando preço:', pontos, 'pontos para cliente', clienteId);
+            
+            jQuery.ajax({
+                url: bordados_ajax.ajax_url,
+                type: 'POST',
+                data: {
+                    action: 'calcular_preco_orcamento',
+                    nonce: bordados_ajax.nonce,
+                    cliente_id: clienteId,
+                    pontos: pontos
+                },
+                success: function(response) {
+                    if (response.success && response.data.preco_final) {
+                        var precoNovo = parseFloat(response.data.preco_final).toFixed(2);
+                        jQuery('#aprovacao-preco-final').val(precoNovo);
+                        jQuery('#aprovacao-preco-final').attr('placeholder', 'Calculated: $' + precoNovo);
+                        
+                        console.log('✅ Preço recalculado:', precoNovo, '(' + pontos.toLocaleString() + ' stitches)');
+                    } else {
+                        jQuery('#aprovacao-preco-final').attr('placeholder', 'Enter price manually');
+                        console.log('⚠️ Could not calculate price:', response);
+                    }
+                },
+                error: function() {
+                    jQuery('#aprovacao-preco-final').attr('placeholder', 'Enter price manually');
+                    console.error('❌ Error recalculating price');
+                }
+            });
+        });
         
         // Mostrar arquivos selecionados no upload múltiplo
         document.getElementById('arquivos-revisados-input').addEventListener('change', function() {
