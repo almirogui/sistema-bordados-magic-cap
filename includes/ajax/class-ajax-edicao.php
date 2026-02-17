@@ -107,9 +107,16 @@ public function solicitar_edicao() {
     if ($nova_edicao_id) {
         error_log("✅ Edição criada: #$nova_edicao_id (v$nova_versao)");
         
-        $mensagem = "Edição solicitada com sucesso! ";
-        $mensagem .= $edicao_gratuita ? "(Primeira edição GRATUITA)" : "(Edição será cobrada)";
-        $mensagem .= " O programador foi notificado.";
+        // ========================================
+        // ENVIAR EMAIL PARA ASSISTENTE
+        // ========================================
+        if (class_exists('Bordados_Emails') && method_exists('Bordados_Emails', 'notificar_assistente_edicao_cliente')) {
+            Bordados_Emails::notificar_assistente_edicao_cliente($nova_edicao_id, $pedido_original);
+        }
+        
+        $mensagem = "Edit request submitted successfully! ";
+        $mensagem .= $edicao_gratuita ? "(First edit is FREE)" : "(This edit may be charged)";
+        $mensagem .= " Our team has been notified and will review your request.";
         
         wp_send_json_success(array(
             'message' => $mensagem,

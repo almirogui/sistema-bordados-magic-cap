@@ -8,6 +8,8 @@
  * - Suporte a múltiplos emails separados por vírgula no campo secundário
  * - NOVO: Confirmação de pedido para cliente (inglês) e admin (português) (2026-01-10)
  * - NOVO: Ocultar nome do cliente do programador + Email com downloads categorizados (2026-01-14) v3.3.2
+ * - CORREÇÃO BUG: enviar_acertos_solicitados() + notificar_assistente_acertos() (2026-02-17) v3.3.5
+ * - NOVO: notificar_assistente_edicao_cliente() para edições solicitadas pelo cliente (2026-02-17) v3.3.5
  */
 
 if (!defined('ABSPATH')) {
@@ -1116,6 +1118,340 @@ public static function notificar_programador_edicao($pedido_id, $campos_alterado
         <p>Best regards,<br>
         <strong>Puncher Digitizing Team</strong></p>
         ";
+    }
+
+    // ========================================
+    // CORREÇÃO BUG: Emails de acertos solicitados
+    // Adicionado v3.3.5 - 2026-02-17
+    // ========================================
+
+    /**
+     * Enviar email para PROGRAMADOR quando acertos são solicitados
+     * ✅ Idioma: INGLÊS
+     * Chamado por: class-ajax-revisor.php → solicitar_acertos()
+     *
+     * @param object $pedido    Objeto do pedido
+     * @param string $obs       Observações/instruções de acerto
+     * @param array  $imagens   Array de imagens anexadas (opcional)
+     */
+    public static function enviar_acertos_solicitados($pedido, $obs = '', $imagens = array()) {
+        if (!$pedido || empty($pedido->programador_id)) {
+            error_log("❌ enviar_acertos_solicitados: pedido inválido ou sem programador");
+            return false;
+        }
+
+        $programador = get_userdata($pedido->programador_id);
+        if (!$programador) {
+            error_log("❌ enviar_acertos_solicitados: programador não encontrado (ID: {$pedido->programador_id})");
+            return false;
+        }
+
+        $para    = $programador->user_email;
+        $assunto = '⚠️ Corrections Requested - Order #' . $pedido->id . ' - ' . $pedido->nome_bordado;
+
+        // Montar template
+        $mensagem = self::template_acertos_programador($pedido, $obs, $imagens);
+
+        // Headers sem CC — email interno para programador
+        $headers = array(
+            'Content-Type: text/html; charset=UTF-8',
+            'From: Puncher Digitizing <noreply@puncher.com>'
+        );
+
+        $enviado = wp_mail($para, $assunto, $mensagem, $headers);
+
+        if ($enviado) {
+            error_log("✅ Email de acertos enviado para programador {$para} (pedido #{$pedido->id})");
+        } else {
+            error_log("❌ Falha ao enviar email de acertos para programador {$para} (pedido #{$pedido->id})");
+        }
+
+        // Notificar assistente também
+        self::notificar_assistente_acertos($pedido, $obs);
+
+        return $enviado;
+    }
+
+    /**
+     * Notificar ASSISTENTE quando CLIENTE solicita EDIÇÃO
+     * ✅ Idioma: PORTUGUÊS DO BRASIL
+     * Chamado por: class-ajax-edicao.php → solicitar_edicao()
+     * 
+     * @param int    $edicao_id         ID do novo pedido de edição criado
+     * @param object $pedido_original   Objeto do pedido original (pronto)
+     */
+    public static function notificar_assistente_edicao_cliente($edicao_id, $pedido_original) {
+        global $wpdb;
+        
+        // Buscar dados completos da edição criada
+        $edicao = $wpdb->get_row($wpdb->prepare(
+            "SELECT * FROM pedidos_basicos WHERE id = %d",
+            $edicao_id
+        ));
+        
+        if (!$edicao) {
+            error_log("❌ notificar_assistente_edicao_cliente: edição #{$edicao_id} não encontrada");
+            return false;
+        }
+        
+        // Buscar cliente
+        $cliente = get_userdata($edicao->cliente_id);
+        $cliente_nome = $cliente ? $cliente->display_name : 'Cliente';
+        $cliente_email = $cliente ? $cliente->user_email : 'N/A';
+        
+        $para    = 'puncher@puncher.com';
+        $assunto = '📝 Nova Edição Solicitada - Pedido #' . $pedido_original->id . ' → Edição #' . $edicao_id;
+        
+        $motivo_html = !empty($edicao->motivo_edicao) ? nl2br(esc_html($edicao->motivo_edicao)) : '<em>Sem motivo informado.</em>';
+        $gratuita_badge = ($edicao->edicao_gratuita == 1) 
+            ? '<span style="background: #28a745; color: white; padding: 5px 10px; border-radius: 15px; font-size: 12px;">🎁 EDIÇÃO GRATUITA</span>'
+            : '<span style="background: #ffc107; color: #333; padding: 5px 10px; border-radius: 15px; font-size: 12px;">💰 EDIÇÃO PAGA</span>';
+        
+        $mensagem = "
+        <div style='font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;'>
+            <div style='background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 20px; border-radius: 10px 10px 0 0; text-align: center;'>
+                <h2 style='margin: 0;'>📝 Nova Edição Solicitada pelo Cliente</h2>
+                <p style='margin: 5px 0 0 0; opacity: 0.9;'>Pedido Original #{$pedido_original->id} → Nova Edição #{$edicao_id}</p>
+            </div>
+
+            <div style='background: #fff; padding: 25px; border: 1px solid #ddd;'>
+                <div style='text-align: center; margin-bottom: 20px;'>
+                    {$gratuita_badge}
+                </div>
+
+                <p>O cliente <strong>{$cliente_nome}</strong> solicitou uma edição em um pedido já concluído.</p>
+
+                <table style='border-collapse: collapse; width: 100%; margin: 20px 0;'>
+                    <tr>
+                        <td style='border: 1px solid #ddd; padding: 10px; background: #f8f9fa; width: 35%;'><strong>Pedido Original:</strong></td>
+                        <td style='border: 1px solid #ddd; padding: 10px;'>#{$pedido_original->id} - " . esc_html($pedido_original->nome_bordado) . "</td>
+                    </tr>
+                    <tr>
+                        <td style='border: 1px solid #ddd; padding: 10px; background: #f8f9fa;'><strong>Nova Edição:</strong></td>
+                        <td style='border: 1px solid #ddd; padding: 10px;'><strong style='color: #667eea;'>#{$edicao_id}</strong> - " . esc_html($edicao->nome_bordado) . "</td>
+                    </tr>
+                    <tr>
+                        <td style='border: 1px solid #ddd; padding: 10px; background: #f8f9fa;'><strong>Versão:</strong></td>
+                        <td style='border: 1px solid #ddd; padding: 10px;'>v{$edicao->versao}</td>
+                    </tr>
+                    <tr>
+                        <td style='border: 1px solid #ddd; padding: 10px; background: #f8f9fa;'><strong>Cliente:</strong></td>
+                        <td style='border: 1px solid #ddd; padding: 10px;'>{$cliente_nome} ({$cliente_email})</td>
+                    </tr>
+                    <tr>
+                        <td style='border: 1px solid #ddd; padding: 10px; background: #f8f9fa;'><strong>Tipo:</strong></td>
+                        <td style='border: 1px solid #ddd; padding: 10px;'>" . ($edicao->edicao_gratuita == 1 ? '🎁 Primeira edição (GRATUITA)' : '💰 Edição adicional (pode ser cobrada)') . "</td>
+                    </tr>
+                </table>
+
+                <div style='background: #fff3e0; padding: 15px; border-radius: 5px; border-left: 4px solid #667eea; margin: 20px 0;'>
+                    <h3 style='margin: 0 0 10px 0; color: #667eea;'>📋 Motivo da edição solicitada pelo cliente:</h3>
+                    <p style='margin: 0;'>{$motivo_html}</p>
+                </div>
+
+                <div style='background: #e3f2fd; padding: 15px; border-radius: 5px; margin: 20px 0;'>
+                    <h4 style='margin: 0 0 10px 0; color: #1976d2;'>👩‍💼 Próximos passos para a Assistente:</h4>
+                    <ol style='margin: 5px 0; padding-left: 20px;'>
+                        <li>Analisar o motivo da edição solicitada</li>
+                        <li><strong>Decisão:</strong>
+                            <ul>
+                                <li>✅ Se for simples → Você mesma resolve</li>
+                                <li>👨‍💻 Se for complexo → Atribui ao programador pelo painel</li>
+                            </ul>
+                        </li>
+                    </ol>
+                </div>
+
+                <p style='text-align: center; margin: 30px 0;'>
+                    <a href='" . site_url('/painel-assistente/') . "'
+                       style='background: #667eea; color: white; padding: 15px 30px; text-decoration: none; border-radius: 5px; font-weight: bold; display: inline-block; margin: 5px;'>
+                       👩‍💼 Painel Assistente
+                    </a>
+                    <a href='" . site_url('/admin-pedidos/') . "'
+                       style='background: #28a745; color: white; padding: 15px 30px; text-decoration: none; border-radius: 5px; font-weight: bold; display: inline-block; margin: 5px;'>
+                       📋 Admin Pedidos
+                    </a>
+                </p>
+            </div>
+
+            <div style='background: #333; color: #999; padding: 15px; text-align: center; border-radius: 0 0 10px 10px; font-size: 12px;'>
+                Sistema de Bordados - Magic Cap | Notificação automática
+            </div>
+        </div>
+        ";
+
+        $headers = array(
+            'Content-Type: text/html; charset=UTF-8',
+            'From: Sistema Bordados <noreply@puncher.com>'
+        );
+
+        $enviado = wp_mail($para, $assunto, $mensagem, $headers);
+
+        if ($enviado) {
+            error_log("✅ Notificação de edição cliente enviada para assistente (edição #{$edicao_id})");
+        } else {
+            error_log("❌ Falha ao enviar notificação de edição para assistente (edição #{$edicao_id})");
+        }
+
+        return $enviado;
+    }
+
+    /**
+     * Template email acertos para PROGRAMADOR (inglês)
+     */
+    private static function template_acertos_programador($pedido, $obs, $imagens = array()) {
+        $nome_programador = isset($pedido->programador_nome) ? $pedido->programador_nome : 'Programmer';
+        $obs_html = !empty($obs) ? nl2br(esc_html($obs)) : '<em>No additional notes.</em>';
+
+        $imagens_html = '';
+        if (!empty($imagens)) {
+            $imagens_html = "<p><strong>Reference images attached:</strong> " . count($imagens) . " image(s)</p>";
+        }
+
+        return "
+        <div style='font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;'>
+            <div style='background: #e65100; color: white; padding: 20px; border-radius: 10px 10px 0 0; text-align: center;'>
+                <h2 style='margin: 0;'>⚠️ Corrections Requested</h2>
+                <p style='margin: 5px 0 0 0; opacity: 0.9;'>Order #{$pedido->id}</p>
+            </div>
+
+            <div style='background: #fff; padding: 25px; border: 1px solid #ddd;'>
+                <p>Hello <strong>{$nome_programador}</strong>,</p>
+                <p>Our quality team has reviewed your work and is requesting some corrections before we can deliver it to the client.</p>
+
+                <table style='border-collapse: collapse; width: 100%; margin: 20px 0;'>
+                    <tr>
+                        <td style='border: 1px solid #ddd; padding: 10px; background: #f8f9fa; width: 35%;'><strong>Order #:</strong></td>
+                        <td style='border: 1px solid #ddd; padding: 10px;'>#{$pedido->id}</td>
+                    </tr>
+                    <tr>
+                        <td style='border: 1px solid #ddd; padding: 10px; background: #f8f9fa;'><strong>Design:</strong></td>
+                        <td style='border: 1px solid #ddd; padding: 10px;'>{$pedido->nome_bordado}</td>
+                    </tr>
+                    <tr>
+                        <td style='border: 1px solid #ddd; padding: 10px; background: #f8f9fa;'><strong>Size:</strong></td>
+                        <td style='border: 1px solid #ddd; padding: 10px;'>" . esc_html($pedido->tamanho) . "</td>
+                    </tr>
+                </table>
+
+                <div style='background: #fff3e0; padding: 15px; border-radius: 5px; border-left: 4px solid #e65100; margin: 20px 0;'>
+                    <h3 style='margin: 0 0 10px 0; color: #e65100;'>📋 Corrections needed:</h3>
+                    <p style='margin: 0;'>{$obs_html}</p>
+                </div>
+
+                {$imagens_html}
+
+                <p style='text-align: center; margin: 30px 0;'>
+                    <a href='" . site_url('/painel-programador/') . "'
+                       style='background: #e65100; color: white; padding: 15px 30px; text-decoration: none; border-radius: 5px; font-weight: bold; display: inline-block;'>
+                       🔧 View Order & Submit Corrections
+                    </a>
+                </p>
+
+                <p>Please make the corrections as soon as possible and resubmit the files.</p>
+                <p>Best regards,<br><strong>Puncher Quality Team</strong></p>
+            </div>
+
+            <div style='background: #333; color: #999; padding: 15px; text-align: center; border-radius: 0 0 10px 10px; font-size: 12px;'>
+                Puncher.com - Magic Cap Embroidery | Automatic notification
+            </div>
+        </div>
+        ";
+    }
+
+    /**
+     * Notificar ASSISTENTE/ADMIN quando acertos são solicitados
+     * ✅ Idioma: PORTUGUÊS DO BRASIL
+     * Chamado internamente por enviar_acertos_solicitados()
+     *
+     * @param object $pedido  Objeto do pedido
+     * @param string $obs     Observações dos acertos
+     */
+    public static function notificar_assistente_acertos($pedido, $obs = '') {
+        $para    = 'puncher@puncher.com';
+        $assunto = '⚠️ Acertos Solicitados - Pedido #' . $pedido->id . ' - ' . $pedido->nome_bordado;
+
+        // Buscar dados do programador
+        $programador_nome = 'N/A';
+        if (!empty($pedido->programador_id)) {
+            $programador = get_userdata($pedido->programador_id);
+            if ($programador) {
+                $programador_nome = $programador->display_name;
+            }
+        }
+
+        $obs_html = !empty($obs) ? nl2br(esc_html($obs)) : '<em>Nenhuma observação informada.</em>';
+
+        $mensagem = "
+        <div style='font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;'>
+            <div style='background: #b71c1c; color: white; padding: 20px; border-radius: 10px 10px 0 0; text-align: center;'>
+                <h2 style='margin: 0;'>⚠️ Acertos Solicitados ao Programador</h2>
+                <p style='margin: 5px 0 0 0; opacity: 0.9;'>Pedido #{$pedido->id}</p>
+            </div>
+
+            <div style='background: #fff; padding: 25px; border: 1px solid #ddd;'>
+                <p>A revisora solicitou acertos ao programador no pedido abaixo:</p>
+
+                <table style='border-collapse: collapse; width: 100%; margin: 20px 0;'>
+                    <tr>
+                        <td style='border: 1px solid #ddd; padding: 10px; background: #f8f9fa; width: 35%;'><strong>Pedido #:</strong></td>
+                        <td style='border: 1px solid #ddd; padding: 10px;'>#{$pedido->id}</td>
+                    </tr>
+                    <tr>
+                        <td style='border: 1px solid #ddd; padding: 10px; background: #f8f9fa;'><strong>Design:</strong></td>
+                        <td style='border: 1px solid #ddd; padding: 10px;'>" . esc_html($pedido->nome_bordado) . "</td>
+                    </tr>
+                    <tr>
+                        <td style='border: 1px solid #ddd; padding: 10px; background: #f8f9fa;'><strong>Tamanho:</strong></td>
+                        <td style='border: 1px solid #ddd; padding: 10px;'>" . esc_html($pedido->tamanho) . "</td>
+                    </tr>
+                    <tr>
+                        <td style='border: 1px solid #ddd; padding: 10px; background: #f8f9fa;'><strong>Programador:</strong></td>
+                        <td style='border: 1px solid #ddd; padding: 10px;'>{$programador_nome}</td>
+                    </tr>
+                    <tr>
+                        <td style='border: 1px solid #ddd; padding: 10px; background: #f8f9fa;'><strong>Status atual:</strong></td>
+                        <td style='border: 1px solid #ddd; padding: 10px;'><strong style='color: #e65100;'>em_acertos</strong></td>
+                    </tr>
+                </table>
+
+                <div style='background: #fff3e0; padding: 15px; border-radius: 5px; border-left: 4px solid #e65100; margin: 20px 0;'>
+                    <h3 style='margin: 0 0 10px 0; color: #e65100;'>📋 Acertos solicitados:</h3>
+                    <p style='margin: 0;'>{$obs_html}</p>
+                </div>
+
+                <p style='text-align: center; margin: 30px 0;'>
+                    <a href='" . site_url('/painel-assistente/') . "'
+                       style='background: #667eea; color: white; padding: 15px 30px; text-decoration: none; border-radius: 5px; font-weight: bold; display: inline-block; margin: 5px;'>
+                       👩‍💼 Painel Assistente
+                    </a>
+                    <a href='" . site_url('/admin-pedidos/') . "'
+                       style='background: #28a745; color: white; padding: 15px 30px; text-decoration: none; border-radius: 5px; font-weight: bold; display: inline-block; margin: 5px;'>
+                       📋 Admin Pedidos
+                    </a>
+                </p>
+            </div>
+
+            <div style='background: #333; color: #999; padding: 15px; text-align: center; border-radius: 0 0 10px 10px; font-size: 12px;'>
+                Sistema de Bordados - Magic Cap | Notificação automática
+            </div>
+        </div>
+        ";
+
+        $headers = array(
+            'Content-Type: text/html; charset=UTF-8',
+            'From: Sistema Bordados <noreply@puncher.com>'
+        );
+
+        $enviado = wp_mail($para, $assunto, $mensagem, $headers);
+
+        if ($enviado) {
+            error_log("✅ Notificação de acertos enviada para assistente (pedido #{$pedido->id})");
+        } else {
+            error_log("❌ Falha ao enviar notificação de acertos para assistente (pedido #{$pedido->id})");
+        }
+
+        return $enviado;
     }
 
     /**
