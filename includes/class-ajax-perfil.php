@@ -170,8 +170,12 @@ class Bordados_Ajax_Perfil {
         }
         
         // Validar emails secundários
-        if (!empty($_POST['email_secundario']) && !self::validar_emails_multiplos($_POST['email_secundario'])) {
-            $erros[] = 'Email secundário inválido';
+        if (!empty($_POST['email_secundario'])) {
+            $validacao = self::validar_emails_multiplos($_POST['email_secundario']);
+            if ($validacao !== true) {
+                // $validacao agora contém a mensagem de erro específica
+                $erros[] = $validacao;
+            }
         }
         
         if (!empty($_POST['email_invoice']) && !is_email($_POST['email_invoice'])) {
@@ -335,15 +339,44 @@ class Bordados_Ajax_Perfil {
     }
 /**
      * Validar múltiplos emails separados por vírgula
+     * LIMITE: até 10 emails
+     * 
+     * @param string $emails_string Emails separados por vírgula
+     * @return bool|string TRUE se válido, mensagem de erro se inválido
      */
     private static function validar_emails_multiplos($emails_string) {
-        if (empty($emails_string)) return true;
+        // Aceitar vazio
+        if (empty($emails_string)) {
+            return true;
+        }
+        
+        // Separar por vírgula e limpar espaços
         $emails = array_map('trim', explode(',', $emails_string));
+        
+        // Filtrar vazios
+        $emails = array_filter($emails, function($email) {
+            return !empty($email);
+        });
+        
+        // Validar limite de 10 emails
+        if (count($emails) > 10) {
+            return 'Maximum 10 secondary emails allowed (' . count($emails) . ' provided)';
+        }
+        
+        // Validar cada email
+        $emails_invalidos = array();
         foreach ($emails as $email) {
-            if (!empty($email) && !is_email($email)) {
-                return false;
+            if (!is_email($email)) {
+                $emails_invalidos[] = $email;
             }
         }
+        
+        // Se houver inválidos, retornar erro específico
+        if (!empty($emails_invalidos)) {
+            return 'Invalid email(s): ' . implode(', ', $emails_invalidos);
+        }
+        
+        // Tudo OK
         return true;
     }
 

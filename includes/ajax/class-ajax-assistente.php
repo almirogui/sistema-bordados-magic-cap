@@ -1002,6 +1002,3 @@ public function salvar_pedido() {
         ));
     }
 }
-
-// Inicializar a classe
-new Bordados_Ajax_Assistente();

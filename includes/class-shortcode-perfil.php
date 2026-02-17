@@ -89,9 +89,20 @@ class Bordados_Shortcode_Perfil {
                                    value="<?php echo esc_attr($user->user_email); ?>" required>
                         </div>
                         <div class="form-col">
-                            <label for="email_secundario">Secondary Email</label>
-                            <input type="text" id="email_secundario" name="email_secundario" 
-                                   value="<?php echo esc_attr($dados['email_secundario']); ?>">
+                            <label for="email_secundario">
+                                Secondary Email(s) - CC
+                                <span style="color: #999; font-weight: 400; font-size: 12px;">(Up to 10 emails)</span>
+                            </label>
+                            <input type="text" 
+                                id="email_secundario" 
+                                name="email_secundario" 
+                                value="<?php echo esc_attr($dados['email_secundario']); ?>"
+                                placeholder="team@company.com, john@company.com, mary@company.com">
+                            <small style="display: block; margin-top: 5px; color: #666;">
+                                📧 All team members listed here will receive CC copies of order notifications. 
+                                Separate multiple emails with commas.
+                            </small>
+                            <small id="email-secundario-feedback" style="display: none; margin-top: 5px; font-weight: 600;"></small>
                         </div>
                     </div>
                     
@@ -640,6 +651,64 @@ class Bordados_Shortcode_Perfil {
             $(document).on('click', '#modal-credit-card', function(e) {
                 if (e.target === this) {
                     closeCardModal();
+                }
+            });
+            
+            // ========================================
+            // VALIDAÇÃO EM TEMPO REAL - EMAIL SECUNDÁRIO
+            // ========================================
+            $('#email_secundario').on('input blur', function() {
+                var campo = $(this);
+                var valor = campo.val().trim();
+                var feedback = $('#email-secundario-feedback');
+                
+                // Limpar feedback se vazio
+                if (valor === '') {
+                    feedback.hide();
+                    campo.css('border-color', '#ddd');
+                    return;
+                }
+                
+                // Separar emails por vírgula
+                var emails = valor.split(',').map(function(email) {
+                    return email.trim();
+                }).filter(function(email) {
+                    return email !== '';
+                });
+                
+                // Validar limite de 10 emails
+                if (emails.length > 10) {
+                    feedback
+                        .text('❌ Maximum 10 emails allowed (' + emails.length + ' provided)')
+                        .css('color', '#dc3545')
+                        .show();
+                    campo.css('border-color', '#dc3545');
+                    return;
+                }
+                
+                // Validar cada email
+                var emailsInvalidos = [];
+                var emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+                
+                for (var i = 0; i < emails.length; i++) {
+                    if (!emailRegex.test(emails[i])) {
+                        emailsInvalidos.push(emails[i]);
+                    }
+                }
+                
+                // Mostrar resultado
+                if (emailsInvalidos.length > 0) {
+                    feedback
+                        .text('❌ Invalid email(s): ' + emailsInvalidos.join(', '))
+                        .css('color', '#dc3545')
+                        .show();
+                    campo.css('border-color', '#dc3545');
+                } else {
+                    feedback
+                        .text('✅ ' + emails.length + ' valid email(s)')
+                        .css('color', '#28a745')
+                        .show();
+                    campo.css('border-color', '#28a745');
                 }
             });
             
