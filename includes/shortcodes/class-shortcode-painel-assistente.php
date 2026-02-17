@@ -201,7 +201,7 @@ class Bordados_Shortcode_Painel_Assistente {
         // Construir query WHERE
         $where = "1=1";
         if ($status_filtro === 'ativos') {
-            $where = "p.status IN ('novo', 'atribuido', 'em_producao', 'aguardando_revisao', 'em_revisao')";
+            $where = "p.status IN ('novo', 'atribuido', 'em_producao', 'aguardando_revisao', 'em_revisao', 'em_acertos')";
         } elseif ($status_filtro === 'pronto') {
             // Prontos apenas dos últimos X dias
             $where = "p.status = 'pronto' AND p.data_conclusao >= DATE_SUB(NOW(), INTERVAL $dias_prontos DAY)";
@@ -209,7 +209,7 @@ class Bordados_Shortcode_Painel_Assistente {
             $where = $wpdb->prepare("p.status = %s", $status_filtro);
         } else {
             // "Todos" = ativos + prontos recentes
-            $where = "(p.status IN ('novo', 'atribuido', 'em_producao', 'aguardando_revisao', 'em_revisao') 
+            $where = "(p.status IN ('novo', 'atribuido', 'em_producao', 'aguardando_revisao', 'em_revisao', 'em_acertos') 
                       OR (p.status = 'pronto' AND p.data_conclusao >= DATE_SUB(NOW(), INTERVAL $dias_prontos DAY)))";
         }
         
@@ -356,6 +356,7 @@ class Bordados_Shortcode_Painel_Assistente {
             'em_producao'        => array('⚙️ Em Produção', '#28a745', 'white'),
             'aguardando_revisao' => array('🔍 Aguard. Revisão', '#6f42c1', 'white'),
             'em_revisao'         => array('🔎 Em Revisão', '#e83e8c', 'white'),
+            'em_acertos'         => array('🔧 Em Acertos', '#ff6b6b', 'white'),
             'pronto'             => array('✅ Pronto', '#6c757d', 'white'),
         );
         
