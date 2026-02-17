@@ -239,12 +239,17 @@ class Bordados_Ajax_Assistente {
             'em_producao' => '⚙️ Em Produção',
             'aguardando_revisao' => '🔍 Aguardando Revisão',
             'em_revisao' => '📝 Em Revisão',
+            'em_acertos' => '🔧 Em Acertos',
             'pronto' => '✅ Pronto'
         );
         
+        // Decodificar arquivos
+        $arquivos_cliente = !empty($pedido->arquivos_cliente) ? json_decode($pedido->arquivos_cliente, true) : array();
+        $arquivos_finais = !empty($pedido->arquivos_finais) ? json_decode($pedido->arquivos_finais, true) : array();
+        
         ob_start();
         ?>
-        <div class="detalhes-pedido">
+        <div class="detalhes-pedido" style="font-size: 14px;">
             <p><strong>Cliente:</strong> <?php echo esc_html($cliente ? $cliente->display_name : 'N/A'); ?></p>
             <p><strong>Email:</strong> <?php echo esc_html($cliente ? $cliente->user_email : 'N/A'); ?></p>
             <p><strong>Bordado:</strong> <?php echo esc_html($pedido->nome_bordado); ?></p>
@@ -256,8 +261,95 @@ class Bordados_Ajax_Assistente {
             <?php if (!empty($pedido->observacoes)): ?>
                 <p><strong>Observações:</strong><br><?php echo nl2br(esc_html($pedido->observacoes)); ?></p>
             <?php endif; ?>
+            
+            <?php if (!empty($arquivos_cliente)): ?>
+                <div style="margin-top: 20px; padding: 15px; background: #f8f9fa; border-radius: 5px;">
+                    <h4 style="margin: 0 0 10px 0; color: #667eea;">📎 Arquivos do Cliente</h4>
+                    <?php echo $this->renderizar_galeria_arquivos($arquivos_cliente, 'cliente'); ?>
+                </div>
+            <?php endif; ?>
+            
+            <?php if (!empty($arquivos_finais)): ?>
+                <div style="margin-top: 20px; padding: 15px; background: #e8f5e9; border-radius: 5px;">
+                    <h4 style="margin: 0 0 10px 0; color: #28a745;">✅ Arquivos Finais</h4>
+                    <?php echo $this->renderizar_galeria_arquivos($arquivos_finais, 'final'); ?>
+                </div>
+            <?php endif; ?>
         </div>
         <?php
+        return ob_get_clean();
+    }
+    
+    /**
+     * Renderizar galeria de arquivos (imagens + links para outros)
+     */
+    private function renderizar_galeria_arquivos($arquivos, $tipo = 'cliente') {
+        if (empty($arquivos) || !is_array($arquivos)) {
+            return '<p style="margin: 0; color: #999;">Nenhum arquivo.</p>';
+        }
+        
+        $imagens = array();
+        $outros = array();
+        $extensoes_imagem = array('jpg', 'jpeg', 'png', 'gif', 'webp');
+        
+        // Separar imagens de outros arquivos
+        foreach ($arquivos as $arquivo) {
+            $extensao = strtolower(pathinfo($arquivo, PATHINFO_EXTENSION));
+            if (in_array($extensao, $extensoes_imagem)) {
+                $imagens[] = $arquivo;
+            } else {
+                $outros[] = $arquivo;
+            }
+        }
+        
+        ob_start();
+        
+        // Galeria de imagens
+        if (!empty($imagens)) {
+            echo '<div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); gap: 10px; margin-bottom: 15px;">';
+            foreach ($imagens as $imagem) {
+                $nome_arquivo = basename($imagem);
+                ?>
+                <div class="galeria-item" style="position: relative; cursor: pointer; border: 2px solid #e0e0e0; border-radius: 5px; overflow: hidden; aspect-ratio: 1/1; background: #f5f5f5;" 
+                     onclick="abrirImagemModal('<?php echo esc_attr($imagem); ?>', '<?php echo esc_attr($nome_arquivo); ?>')">
+                    <img src="<?php echo esc_url($imagem); ?>" 
+                         alt="<?php echo esc_attr($nome_arquivo); ?>"
+                         style="width: 100%; height: 100%; object-fit: cover; transition: transform 0.2s;"
+                         onmouseover="this.style.transform='scale(1.05)'"
+                         onmouseout="this.style.transform='scale(1)'">
+                    <div style="position: absolute; bottom: 0; left: 0; right: 0; background: rgba(0,0,0,0.7); color: white; padding: 5px; font-size: 10px; text-align: center; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                        <?php echo esc_html($nome_arquivo); ?>
+                    </div>
+                </div>
+                <?php
+            }
+            echo '</div>';
+        }
+        
+        // Lista de outros arquivos (não-imagens)
+        if (!empty($outros)) {
+            echo '<div style="margin-top: 10px;">';
+            echo '<p style="margin: 0 0 5px 0; font-size: 12px; color: #666;"><strong>Outros arquivos:</strong></p>';
+            echo '<ul style="margin: 0; padding-left: 20px;">';
+            foreach ($outros as $arquivo) {
+                $nome_arquivo = basename($arquivo);
+                $extensao = strtolower(pathinfo($arquivo, PATHINFO_EXTENSION));
+                
+                // Ícone por tipo de arquivo
+                $icone = '📄';
+                if (in_array($extensao, array('pdf'))) $icone = '📑';
+                if (in_array($extensao, array('zip', 'rar'))) $icone = '📦';
+                if (in_array($extensao, array('dst', 'emb', 'exp', 'pes', 'vp3', 'jef'))) $icone = '🧵';
+                
+                echo '<li style="margin-bottom: 5px;">';
+                echo '<a href="' . esc_url($arquivo) . '" target="_blank" style="color: #667eea; text-decoration: none;">';
+                echo $icone . ' ' . esc_html($nome_arquivo);
+                echo '</a></li>';
+            }
+            echo '</ul>';
+            echo '</div>';
+        }
+        
         return ob_get_clean();
     }
     

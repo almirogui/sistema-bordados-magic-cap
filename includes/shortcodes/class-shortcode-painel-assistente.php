@@ -1061,6 +1061,45 @@ class Bordados_Shortcode_Painel_Assistente {
                 });
             }
             
+            // ========================================
+            // MODAL DE ZOOM DE IMAGEM
+            // ========================================
+            window.abrirImagemModal = function(urlImagem, nomeArquivo) {
+                // Remover modal existente se houver
+                $('#modal-zoom-imagem').remove();
+                
+                var modal = $('<div id="modal-zoom-imagem" style="position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.95); z-index: 999999; display: flex; align-items: center; justify-content: center; padding: 20px; cursor: zoom-out;">' +
+                    '<div style="position: relative; max-width: 90%; max-height: 90vh; display: flex; flex-direction: column; align-items: center;">' +
+                        '<div style="position: absolute; top: -40px; right: 0; display: flex; gap: 10px; align-items: center;">' +
+                            '<a href="' + urlImagem + '" download style="background: #667eea; color: white; padding: 8px 15px; border-radius: 5px; text-decoration: none; font-size: 14px;">⬇ Download</a>' +
+                            '<button onclick="fecharModalZoom()" style="background: #dc3545; color: white; padding: 8px 15px; border: none; border-radius: 5px; cursor: pointer; font-size: 14px;">✕ Fechar</button>' +
+                        '</div>' +
+                        '<img src="' + urlImagem + '" alt="' + nomeArquivo + '" style="max-width: 100%; max-height: 85vh; object-fit: contain; border-radius: 5px; box-shadow: 0 10px 40px rgba(0,0,0,0.5);">' +
+                        '<p style="margin: 15px 0 0 0; color: white; font-size: 14px; text-align: center;">' + nomeArquivo + '</p>' +
+                    '</div>' +
+                '</div>');
+                
+                $('body').append(modal);
+                
+                // Fechar ao clicar fora ou pressionar ESC
+                modal.on('click', function(e) {
+                    if (e.target.id === 'modal-zoom-imagem') {
+                        fecharModalZoom();
+                    }
+                });
+                
+                $(document).on('keyup.modal-zoom', function(e) {
+                    if (e.key === 'Escape') {
+                        fecharModalZoom();
+                    }
+                });
+            };
+            
+            window.fecharModalZoom = function() {
+                $('#modal-zoom-imagem').remove();
+                $(document).off('keyup.modal-zoom');
+            };
+            
         });
         </script>
         <?php
