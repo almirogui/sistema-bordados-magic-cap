@@ -45,6 +45,9 @@ class Bordados_Ajax_Assistente {
         
         // Atribuir pedido a programador
         add_action('wp_ajax_assistente_atribuir_pedido', array($this, 'atribuir_pedido'));
+        
+        // Deletar pedido
+        add_action('wp_ajax_assistente_deletar_pedido', array($this, 'deletar_pedido'));
     }
     
     /**
@@ -1000,5 +1003,154 @@ public function salvar_pedido() {
         wp_send_json_success(array(
             'message' => 'Cliente "' . $display_name . '" atualizado com sucesso!'
         ));
+    }
+    
+    /**
+     * AJAX: Deletar pedido
+     * Só pode deletar se status NÃO for "pronto"
+     */
+    public function deletar_pedido() {
+        // Verificar nonce
+        if (!wp_verify_nonce($_POST['nonce'], 'bordados_nonce')) {
+            wp_send_json_error('Verificação de segurança falhou.');
+            return;
+        }
+        
+        // Verificar permissão
+        if (!$this->verificar_permissao()) {
+            wp_send_json_error('Acesso negado.');
+            return;
+        }
+        
+        $pedido_id = intval($_POST['pedido_id']);
+        
+        if (empty($pedido_id)) {
+            wp_send_json_error('ID do pedido inválido.');
+            return;
+        }
+        
+        global $wpdb;
+        $tabela = 'pedidos_basicos';
+        
+        // Buscar pedido
+        $pedido = $wpdb->get_row($wpdb->prepare("SELECT * FROM $tabela WHERE id = %d", $pedido_id));
+        
+        if (!$pedido) {
+            wp_send_json_error('Pedido não encontrado.');
+            return;
+        }
+        
+        // NÃO PERMITIR deletar pedidos prontos
+        if ($pedido->status === 'pronto') {
+            wp_send_json_error('Não é possível deletar pedidos já finalizados (status "pronto").');
+            return;
+        }
+        
+        // Log da ação
+        error_log("🗑️ Assistente deletando pedido #{$pedido_id} (status: {$pedido->status})");
+        
+        // Deletar arquivos associados
+        $this->deletar_arquivos_pedido($pedido);
+        
+        // Deletar do banco
+        $resultado = $wpdb->delete(
+            $tabela,
+            array('id' => $pedido_id),
+            array('%d')
+        );
+        
+        if ($resultado === false) {
+            error_log("❌ Erro ao deletar pedido #{$pedido_id}: " . $wpdb->last_error);
+            wp_send_json_error('Erro ao deletar pedido do banco de dados.');
+            return;
+        }
+        
+        error_log("✅ Pedido #{$pedido_id} deletado com sucesso por assistente");
+        
+        wp_send_json_success(array(
+            'message' => "Pedido #{$pedido_id} deletado permanentemente."
+        ));
+    }
+    
+    /**
+     * Deletar arquivos físicos associados ao pedido
+     */
+    private function deletar_arquivos_pedido($pedido) {
+        $arquivos_deletados = 0;
+        
+        // Arquivos do cliente
+        if (!empty($pedido->arquivos_cliente)) {
+            $arquivos_cliente = json_decode($pedido->arquivos_cliente, true);
+            if (is_array($arquivos_cliente)) {
+                foreach ($arquivos_cliente as $url) {
+                    if ($this->deletar_arquivo_por_url($url)) {
+                        $arquivos_deletados++;
+                    }
+                }
+            }
+        }
+        
+        // Arquivos finais
+        if (!empty($pedido->arquivos_finais)) {
+            $arquivos_finais = json_decode($pedido->arquivos_finais, true);
+            if (is_array($arquivos_finais)) {
+                foreach ($arquivos_finais as $url) {
+                    if ($this->deletar_arquivo_por_url($url)) {
+                        $arquivos_deletados++;
+                    }
+                }
+            }
+        }
+        
+        // Arquivos extras (acertos)
+        if (!empty($pedido->arquivos_extras)) {
+            $arquivos_extras = json_decode($pedido->arquivos_extras, true);
+            if (is_array($arquivos_extras)) {
+                foreach ($arquivos_extras as $ciclo => $arquivos) {
+                    if (is_array($arquivos)) {
+                        foreach ($arquivos as $url) {
+                            if ($this->deletar_arquivo_por_url($url)) {
+                                $arquivos_deletados++;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        
+        if ($arquivos_deletados > 0) {
+            error_log("🗑️ {$arquivos_deletados} arquivo(s) deletado(s) do pedido #{$pedido->id}");
+        }
+        
+        return $arquivos_deletados;
+    }
+    
+    /**
+     * Deletar arquivo por URL
+     */
+    private function deletar_arquivo_por_url($url) {
+        if (empty($url)) {
+            return false;
+        }
+        
+        // Converter URL para caminho do servidor
+        $upload_dir = wp_upload_dir();
+        $base_url = $upload_dir['baseurl'];
+        $base_dir = $upload_dir['basedir'];
+        
+        if (strpos($url, $base_url) === 0) {
+            $caminho = str_replace($base_url, $base_dir, $url);
+            
+            if (file_exists($caminho)) {
+                if (unlink($caminho)) {
+                    error_log("✅ Arquivo deletado: {$caminho}");
+                    return true;
+                } else {
+                    error_log("❌ Erro ao deletar arquivo: {$caminho}");
+                }
+            }
+        }
+        
+        return false;
     }
 }

@@ -429,6 +429,14 @@ class Bordados_Shortcode_Painel_Assistente {
                             style="padding: 8px 15px; background: #17a2b8; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 13px;">
                         ✏️ Editar
                     </button>
+                    
+                    <!-- Deletar (apenas se NÃO for pronto) -->
+                    <button type="button" class="btn-deletar-pedido" 
+                            data-pedido-id="<?php echo $pedido->id; ?>"
+                            data-nome="<?php echo esc_attr($pedido->nome_bordado); ?>"
+                            style="padding: 8px 15px; background: #dc3545; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 13px;">
+                        🗑️ Deletar
+                    </button>
                 <?php endif; ?>
                 
             </div>
@@ -935,6 +943,123 @@ class Bordados_Shortcode_Painel_Assistente {
                     }
                 });
             });
+            
+            // ========================================
+            // DELETAR PEDIDO
+            // ========================================
+            $(document).on('click', '.btn-deletar-pedido', function() {
+                var pedidoId = $(this).data('pedido-id');
+                var nomePedido = $(this).data('nome');
+                abrirModalDeletar(pedidoId, nomePedido);
+            });
+            
+            function abrirModalDeletar(pedidoId, nomePedido) {
+                // Criar modal dinamicamente
+                var modal = $('<div id="modal-deletar-assistente" style="position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.8); z-index: 99999; display: flex; align-items: center; justify-content: center; padding: 20px;">' +
+                    '<div style="background: white; padding: 30px; border-radius: 10px; max-width: 500px; width: 100%;">' +
+                        '<h3 style="margin: 0 0 20px 0; color: #dc3545;">⚠️ Confirmar Exclusão Permanente</h3>' +
+                        
+                        '<div style="background: #fff3cd; border: 2px solid #ffc107; padding: 15px; border-radius: 5px; margin-bottom: 20px;">' +
+                            '<p style="margin: 0 0 10px 0; font-weight: bold; color: #856404;">⚠️ ATENÇÃO: Esta ação não pode ser desfeita!</p>' +
+                            '<p style="margin: 0; font-size: 14px; color: #856404;">O pedido e todos os arquivos associados serão removidos permanentemente do sistema.</p>' +
+                        '</div>' +
+                        
+                        '<div style="background: #f8f9fa; padding: 15px; border-radius: 5px; margin-bottom: 20px;">' +
+                            '<p style="margin: 0 0 5px 0; font-weight: bold;">Pedido a ser deletado:</p>' +
+                            '<p style="margin: 0 0 5px 0;"><strong>#' + pedidoId + '</strong> - ' + nomePedido + '</p>' +
+                        '</div>' +
+                        
+                        '<div style="margin-bottom: 20px;">' +
+                            '<label style="display: block; margin-bottom: 10px; font-weight: bold; color: #dc3545;">Digite DELETE para confirmar:</label>' +
+                            '<input type="text" id="input-confirmar-delete" placeholder="DELETE" ' +
+                                'style="width: 100%; padding: 10px; border: 2px solid #dc3545; border-radius: 5px; font-size: 16px; font-family: monospace;">' +
+                            '<p style="margin: 10px 0 0 0; font-size: 12px; color: #666;">* A palavra deve ser digitada exatamente como mostrado (maiúsculas)</p>' +
+                        '</div>' +
+                        
+                        '<div style="display: flex; gap: 10px; justify-content: flex-end;">' +
+                            '<button type="button" id="btn-cancelar-delete" style="padding: 10px 20px; background: #6c757d; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 14px;">✖ Cancelar</button>' +
+                            '<button type="button" id="btn-confirmar-delete" disabled style="padding: 10px 20px; background: #dc3545; color: white; border: none; border-radius: 5px; cursor: not-allowed; font-size: 14px; opacity: 0.5;">🗑️ Confirmar Exclusão</button>' +
+                        '</div>' +
+                    '</div>' +
+                '</div>');
+                
+                $('body').append(modal);
+                
+                // Armazenar ID temporariamente
+                modal.data('pedido-id', pedidoId);
+                
+                // Focar no input
+                setTimeout(function() {
+                    $('#input-confirmar-delete').focus();
+                }, 100);
+                
+                // Validar input em tempo real
+                $('#input-confirmar-delete').on('input', function() {
+                    var valor = $(this).val();
+                    var btnConfirmar = $('#btn-confirmar-delete');
+                    
+                    if (valor === 'DELETE') {
+                        btnConfirmar.prop('disabled', false).css({
+                            'cursor': 'pointer',
+                            'opacity': '1'
+                        });
+                    } else {
+                        btnConfirmar.prop('disabled', true).css({
+                            'cursor': 'not-allowed',
+                            'opacity': '0.5'
+                        });
+                    }
+                });
+                
+                // Botão cancelar
+                $('#btn-cancelar-delete').on('click', function() {
+                    modal.remove();
+                });
+                
+                // Botão confirmar
+                $('#btn-confirmar-delete').on('click', function() {
+                    if ($('#input-confirmar-delete').val() === 'DELETE') {
+                        executarDeletePedido(pedidoId, modal);
+                    }
+                });
+                
+                // ESC para fechar
+                $(document).on('keyup.modal-delete', function(e) {
+                    if (e.key === 'Escape') {
+                        modal.remove();
+                        $(document).off('keyup.modal-delete');
+                    }
+                });
+            }
+            
+            function executarDeletePedido(pedidoId, modal) {
+                var btnConfirmar = $('#btn-confirmar-delete');
+                btnConfirmar.prop('disabled', true).text('⏳ Deletando...');
+                
+                $.ajax({
+                    url: ajaxurl,
+                    type: 'POST',
+                    data: {
+                        action: 'assistente_deletar_pedido',
+                        nonce: nonce,
+                        pedido_id: pedidoId
+                    },
+                    success: function(response) {
+                        if (response.success) {
+                            modal.remove();
+                            alert('✅ Pedido #' + pedidoId + ' deletado permanentemente!');
+                            location.reload();
+                        } else {
+                            alert('❌ Erro: ' + (response.data || 'Erro ao deletar pedido'));
+                            btnConfirmar.prop('disabled', false).text('🗑️ Confirmar Exclusão');
+                        }
+                    },
+                    error: function() {
+                        alert('❌ Erro de conexão com o servidor');
+                        btnConfirmar.prop('disabled', false).text('🗑️ Confirmar Exclusão');
+                    }
+                });
+            }
             
         });
         </script>
