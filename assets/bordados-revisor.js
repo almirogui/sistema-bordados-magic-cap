@@ -397,31 +397,189 @@ function removerUploadRevisao(btn, pedidoId) {
 }
 
 function solicitarAcertos(pedidoId) {
-    var observacoes = prompt('Descreva os acertos necessários:');
-    if (!observacoes) return;
-    
-    jQuery.ajax({
-        url: bordados_ajax.ajax_url,
-        type: 'POST',
-        data: {
-            action: 'solicitar_acertos',
-            nonce: bordados_ajax.nonce,
-            pedido_id: pedidoId,
-            observacoes_revisor: observacoes
-        },
-        success: function(response) {
-            if (response.success) {
-                window.mostrarMensagem('warning', 'Acertos Solicitados!', response.data);
-                setTimeout(function() { location.reload(); }, 1500);
-            } else {
-                window.mostrarMensagem('error', 'Erro!', response.data);
+    // Versão modal (substitui a versão antiga com prompt)
+    var modalAcertos = document.getElementById('modal-acertos');
+    if (modalAcertos) {
+        document.getElementById('acertos-pedido-id').value = pedidoId;
+        document.getElementById('acertos-info').innerHTML = 
+            '<strong>Pedido #' + pedidoId + '</strong><br>Descreva os problemas encontrados e anexe imagens se necessário.';
+        document.getElementById('acertos-descricao').value = '';
+        
+        // Reset uploads
+        var items = document.querySelectorAll('#uploads-acertos-container .upload-acertos-item');
+        items.forEach(function(item, index) {
+            var input = item.querySelector('input[type="file"]');
+            if (input) input.value = '';
+            if (index > 0) item.style.display = 'none';
+        });
+        var btnAdd = document.getElementById('btn-add-upload-acertos');
+        if (btnAdd) btnAdd.style.display = 'inline-block';
+        
+        modalAcertos.style.display = 'flex';
+    } else {
+        // Fallback: prompt se modal não existir
+        var observacoes = prompt('Descreva os acertos necessários:');
+        if (!observacoes) return;
+        
+        jQuery.ajax({
+            url: bordados_ajax.ajax_url,
+            type: 'POST',
+            data: {
+                action: 'solicitar_acertos_revisor',
+                nonce: bordados_ajax.nonce,
+                pedido_id: pedidoId,
+                obs_revisor: observacoes
+            },
+            success: function(response) {
+                if (response.success) {
+                    window.mostrarMensagem('warning', 'Acertos Solicitados!', response.data);
+                    setTimeout(function() { location.reload(); }, 1500);
+                } else {
+                    window.mostrarMensagem('error', 'Erro!', response.data);
+                }
+            },
+            error: function() {
+                window.mostrarMensagem('error', 'Erro!', 'Erro de comunicação com o servidor');
             }
-        },
-        error: function() {
-            window.mostrarMensagem('error', 'Erro!', 'Erro de comunicação com o servidor');
-        }
-    });
+        });
+    }
 }
+
+// ===============================
+// FUNÇÕES DO MODAL DE ACERTOS
+// ===============================
+
+window.fecharModalAcertos = function() {
+    var modal = document.getElementById('modal-acertos');
+    if (modal) modal.style.display = 'none';
+};
+
+window.adicionarUploadAcertos = function() {
+    var items = document.querySelectorAll('#uploads-acertos-container .upload-acertos-item');
+    for (var i = 0; i < items.length; i++) {
+        if (items[i].style.display === 'none') {
+            items[i].style.display = 'block';
+            if (i === items.length - 1) {
+                var btnAdd = document.getElementById('btn-add-upload-acertos');
+                if (btnAdd) btnAdd.style.display = 'none';
+            }
+            break;
+        }
+    }
+};
+
+window.removerUploadAcertos = function(btn) {
+    var item = btn.parentNode;
+    var input = item.querySelector('input[type="file"]');
+    if (input) input.value = '';
+    item.style.display = 'none';
+    var btnAdd = document.getElementById('btn-add-upload-acertos');
+    if (btnAdd) btnAdd.style.display = 'inline-block';
+};
+
+// ===============================
+// MODAL DE APROVAÇÃO DO REVISOR
+// ===============================
+
+window.abrirModalAprovacao = function(pedidoId, nomeBordado, clienteNome, precoProgramador, clienteId, numeroPontos, precoFinalExistente) {
+    console.log('✅ abrirModalAprovacao chamada para pedido #' + pedidoId);
+
+    var modalAprovacao = document.getElementById('modal-aprovacao');
+    if (!modalAprovacao) {
+        console.error('❌ modal-aprovacao não encontrado no DOM');
+        alert('Erro: modal de aprovação não encontrado. Recarregue a página.');
+        return;
+    }
+
+    document.getElementById('aprovacao-pedido-id').value = pedidoId;
+
+    // Guardar clienteId globalmente para o event listener de recálculo
+    window.aprovacaoClienteId = clienteId;
+    var campoClienteId = document.getElementById('aprovacao-cliente-id');
+    if (campoClienteId) campoClienteId.value = clienteId;
+
+    var campoPontos = document.getElementById('aprovacao-numero-pontos');
+    if (campoPontos) campoPontos.value = numeroPontos || '';
+
+    var campoInfo = document.getElementById('aprovacao-info');
+    if (campoInfo) {
+        campoInfo.innerHTML =
+            '<strong>Pedido #' + pedidoId + ':</strong> ' + nomeBordado + '<br>' +
+            '<strong>Cliente:</strong> ' + clienteNome;
+    }
+
+    // Campo preço do programador (só existe para administrators)
+    var campoPrecoProgramador = document.getElementById('aprovacao-preco-programador');
+    if (campoPrecoProgramador) {
+        campoPrecoProgramador.value = precoProgramador
+            ? 'R$ ' + parseFloat(precoProgramador).toFixed(2)
+            : 'Não definido';
+    }
+
+    // Limpar campos
+    var campoObs = document.getElementById('aprovacao-obs');
+    if (campoObs) campoObs.value = '';
+
+    var inputArquivos = document.getElementById('arquivos-revisados-input');
+    if (inputArquivos) inputArquivos.value = '';
+
+    var listaArquivos = document.getElementById('arquivos-selecionados');
+    if (listaArquivos) listaArquivos.innerHTML = '';
+
+    // Abrir modal
+    modalAprovacao.style.display = 'flex';
+
+    // Se já existe preço final definido, usar ele (não recalcular)
+    var campoPrecoFinal = document.getElementById('aprovacao-preco-final');
+    if (precoFinalExistente && parseFloat(precoFinalExistente) > 0) {
+        if (campoPrecoFinal) {
+            campoPrecoFinal.value = parseFloat(precoFinalExistente).toFixed(2);
+            campoPrecoFinal.placeholder = 'Preço já definido anteriormente';
+        }
+        console.log('Usando preço final existente: ' + precoFinalExistente);
+        return;
+    }
+
+    // Calcular preço automaticamente se tiver pontos
+    if (clienteId && numeroPontos && numeroPontos > 0) {
+        if (campoPrecoFinal) {
+            campoPrecoFinal.value = '';
+            campoPrecoFinal.placeholder = 'Calculando...';
+        }
+
+        jQuery.ajax({
+            url: bordados_ajax.ajax_url,
+            type: 'POST',
+            data: {
+                action: 'calcular_preco_orcamento',
+                nonce: bordados_ajax.nonce,
+                cliente_id: clienteId,
+                pontos: numeroPontos,
+                preco_programador: precoProgramador
+            },
+            success: function(response) {
+                if (response.success && response.data.preco_final) {
+                    if (campoPrecoFinal) {
+                        campoPrecoFinal.value = response.data.preco_final;
+                        campoPrecoFinal.placeholder = 'Calculado: R$ ' + response.data.preco_final;
+                    }
+                } else {
+                    if (campoPrecoFinal) campoPrecoFinal.value = precoProgramador || '';
+                }
+            },
+            error: function() {
+                if (campoPrecoFinal) campoPrecoFinal.value = precoProgramador || '';
+            }
+        });
+    } else {
+        if (campoPrecoFinal) campoPrecoFinal.value = precoProgramador || '';
+    }
+};
+
+window.fecharModalAprovacao = function() {
+    var modal = document.getElementById('modal-aprovacao');
+    if (modal) modal.style.display = 'none';
+};
 
 // ===============================
 // FUNÇÃO PARA REENVIAR TRABALHO CORRIGIDO
@@ -432,6 +590,116 @@ function reenviarTrabalho(pedidoId) {
     document.getElementById('pedido-id-entrega').value = pedidoId;
     document.getElementById('modal-entrega').style.display = 'block';
 }
+
+// ===============================
+// EVENT LISTENERS DO MODAL APROVAÇÃO
+// ===============================
+
+jQuery(document).ready(function($) {
+
+    // Recálculo de preço quando revisor altera pontos
+    $(document).on('input change', '#aprovacao-numero-pontos', function() {
+        var pontos = parseInt($(this).val());
+        if (!pontos || pontos <= 0) {
+            $('#aprovacao-preco-final').val('').attr('placeholder', 'Enter stitch count first');
+            return;
+        }
+        var clienteId = window.aprovacaoClienteId || $('#aprovacao-cliente-id').val();
+        if (!clienteId) return;
+        $('#aprovacao-preco-final').val('').attr('placeholder', 'Recalculating...');
+        $.ajax({
+            url: bordados_ajax.ajax_url,
+            type: 'POST',
+            data: { action: 'calcular_preco_orcamento', nonce: bordados_ajax.nonce, cliente_id: clienteId, pontos: pontos },
+            success: function(response) {
+                if (response.success && response.data.preco_final) {
+                    var precoNovo = parseFloat(response.data.preco_final).toFixed(2);
+                    $('#aprovacao-preco-final').val(precoNovo).attr('placeholder', 'Calculated: $' + precoNovo);
+                } else {
+                    $('#aprovacao-preco-final').attr('placeholder', 'Enter price manually');
+                }
+            },
+            error: function() { $('#aprovacao-preco-final').attr('placeholder', 'Enter price manually'); }
+        });
+    });
+
+    // Mostrar arquivos selecionados no upload múltiplo
+    $(document).on('change', '#arquivos-revisados-input', function() {
+        var files = this.files;
+        var lista = document.getElementById('arquivos-selecionados');
+        if (!lista) return;
+        if (files.length > 0) {
+            var html = '<strong>' + files.length + ' arquivo(s) selecionado(s):</strong><ul style="margin:5px 0;padding-left:20px;">';
+            for (var i = 0; i < Math.min(files.length, 5); i++) { html += '<li>' + files[i].name + '</li>'; }
+            if (files.length > 5) { html += '<li>... e mais ' + (files.length - 5) + ' arquivo(s)</li>'; }
+            html += '</ul>';
+            lista.innerHTML = html;
+        } else { lista.innerHTML = ''; }
+    });
+
+    // Submit do form de aprovação
+    $(document).on('submit', '#form-aprovacao', function(e) {
+        e.preventDefault();
+        var formData = new FormData(this);
+        formData.append('action', 'aprovar_trabalho_revisor');
+        formData.append('nonce', bordados_ajax.nonce);
+        var btnSubmit = this.querySelector('button[type="submit"]');
+        var textoOriginal = btnSubmit.innerHTML;
+        btnSubmit.disabled = true;
+        btnSubmit.innerHTML = '⏳ Processando...';
+        $.ajax({
+            url: bordados_ajax.ajax_url, type: 'POST', data: formData, processData: false, contentType: false,
+            success: function(response) {
+                btnSubmit.disabled = false;
+                btnSubmit.innerHTML = textoOriginal;
+                if (response.success) {
+                    window.mostrarMensagem('success', 'Aprovado!', response.data);
+                    setTimeout(function() { location.reload(); }, 1500);
+                } else {
+                    window.mostrarMensagem('error', 'Erro!', response.data);
+                }
+            },
+            error: function() {
+                btnSubmit.disabled = false;
+                btnSubmit.innerHTML = textoOriginal;
+                window.mostrarMensagem('error', 'Erro!', 'Erro de conexão. Tente novamente.');
+            }
+        });
+    });
+
+    // Submit do form de acertos
+    $(document).on('submit', '#form-acertos', function(e) {
+        e.preventDefault();
+        var descricao = $('#acertos-descricao').val().trim();
+        if (!descricao) { alert('Por favor, descreva os acertos necessários.'); return; }
+        var formData = new FormData(this);
+        formData.append('action', 'solicitar_acertos_revisor');
+        formData.append('nonce', bordados_ajax.nonce);
+        var btnSubmit = this.querySelector('button[type="submit"]');
+        var textoOriginal = btnSubmit.innerHTML;
+        btnSubmit.disabled = true;
+        btnSubmit.innerHTML = '⏳ Enviando...';
+        $.ajax({
+            url: bordados_ajax.ajax_url, type: 'POST', data: formData, processData: false, contentType: false,
+            success: function(response) {
+                btnSubmit.disabled = false;
+                btnSubmit.innerHTML = textoOriginal;
+                if (response.success) {
+                    window.mostrarMensagem('warning', 'Acertos Solicitados!', response.data);
+                    setTimeout(function() { location.reload(); }, 1500);
+                } else {
+                    window.mostrarMensagem('error', 'Erro!', response.data);
+                }
+            },
+            error: function() {
+                btnSubmit.disabled = false;
+                btnSubmit.innerHTML = textoOriginal;
+                window.mostrarMensagem('error', 'Erro!', 'Erro de comunicação com o servidor');
+            }
+        });
+    });
+
+});
 
 // ===============================
 // SUBMIT DO FORMULÁRIO DE EDIÇÃO
