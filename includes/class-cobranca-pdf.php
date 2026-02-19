@@ -159,8 +159,8 @@ class Bordados_Cobranca_PDF {
      * Gerar HTML do Invoice
      */
     private function gerar_html_invoice($dados, $servicos, $invoice_number, $empresa, $total, $avg_price, $avg_rate) {
-        $data_atual = date('l, F j, Y');
-        $hora_atual = date('g:i:s A');
+        $data_atual = wp_date('l, F j, Y');
+        $hora_atual = wp_date('g:i:s A') . ' ' . wp_date('T');
         
         // Montar endereco do cliente
         $endereco_cliente = array();

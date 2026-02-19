@@ -362,24 +362,53 @@ class Bordados_Shortcode_Painel_Assistente {
         
         $status_info = isset($status_labels[$pedido->status]) ? $status_labels[$pedido->status] : array($pedido->status, '#999', 'white');
         $is_pronto = ($pedido->status === 'pronto');
-        
+
+        // Determinar imagem para exibir no card
+        // Prioridade 1: imagem nos arquivos_finais (revisor ou programador)
+        $imagem_card = '';
+        if (!empty($pedido->arquivos_finais)) {
+            $arquivos_finais_arr = json_decode($pedido->arquivos_finais, true);
+            if (is_array($arquivos_finais_arr)) {
+                foreach ($arquivos_finais_arr as $arq) {
+                    if (Bordados_Helpers::is_imagem($arq)) {
+                        $imagem_card = $arq;
+                        break;
+                    }
+                }
+            }
+        }
+        // Prioridade 2: primeiro arquivo de imagem enviado pelo cliente
+        if (empty($imagem_card)) {
+            $primeiro = Bordados_Helpers::obter_primeiro_arquivo($pedido);
+            if (!empty($primeiro) && Bordados_Helpers::is_imagem($primeiro)) {
+                $imagem_card = $primeiro;
+            }
+        }
+
         ob_start();
         ?>
         <div class="pedido-card" style="background: white; border: 1px solid #e0e0e0; border-radius: 10px; padding: 20px; margin-bottom: 15px; box-shadow: 0 2px 5px rgba(0,0,0,0.05);">
             <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 15px; flex-wrap: wrap; gap: 10px;">
-                <div>
-                    <h4 style="margin: 0 0 5px 0; color: #333;">
-                        #<?php echo $pedido->id; ?> - <?php echo esc_html($pedido->nome_bordado); ?>
-                    </h4>
-                    <p style="margin: 0; font-size: 13px; color: #666;">
-                        👤 <strong><?php echo esc_html($pedido->cliente_nome ?: 'Cliente não encontrado'); ?></strong>
-                        <?php if ($pedido->programador_nome): ?>
-                            | 👨‍💻 <?php echo esc_html($pedido->programador_nome); ?>
-                        <?php endif; ?>
-                        <?php if ($pedido->status === 'em_revisao' && !empty($pedido->revisor_nome)): ?>
-                            | 🔍 <span style="color: #e83e8c;"><?php echo esc_html($pedido->revisor_nome); ?></span>
-                        <?php endif; ?>
-                    </p>
+                <div style="display: flex; align-items: start; gap: 12px;">
+                    <?php if (!empty($imagem_card)): ?>
+                    <div style="flex-shrink: 0;">
+                        <?php echo Bordados_Helpers::exibir_arquivo($imagem_card, '70px'); ?>
+                    </div>
+                    <?php endif; ?>
+                    <div>
+                        <h4 style="margin: 0 0 5px 0; color: #333;">
+                            #<?php echo $pedido->id; ?> - <?php echo esc_html($pedido->nome_bordado); ?>
+                        </h4>
+                        <p style="margin: 0; font-size: 13px; color: #666;">
+                            👤 <strong><?php echo esc_html($pedido->cliente_nome ?: 'Cliente não encontrado'); ?></strong>
+                            <?php if ($pedido->programador_nome): ?>
+                                | 👨‍💻 <?php echo esc_html($pedido->programador_nome); ?>
+                            <?php endif; ?>
+                            <?php if ($pedido->status === 'em_revisao' && !empty($pedido->revisor_nome)): ?>
+                                | 🔍 <span style="color: #e83e8c;"><?php echo esc_html($pedido->revisor_nome); ?></span>
+                            <?php endif; ?>
+                        </p>
+                    </div>
                 </div>
                 <span style="background: <?php echo $status_info[1]; ?>; color: <?php echo $status_info[2]; ?>; padding: 5px 12px; border-radius: 15px; font-size: 12px; font-weight: 500;">
                     <?php echo $status_info[0]; ?>
@@ -388,7 +417,10 @@ class Bordados_Shortcode_Painel_Assistente {
             
             <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; margin-bottom: 15px; font-size: 13px;">
                 <?php if (!empty($pedido->largura) || !empty($pedido->altura)): ?>
-                    <div><strong>Tamanho:</strong> <?php echo esc_html($pedido->largura); ?> x <?php echo esc_html($pedido->altura); ?> <?php echo esc_html($pedido->unidade_medida ?: 'cm'); ?></div>
+                    <?php $dim = Bordados_Helpers::formatar_dimensoes($pedido); ?>
+                    <?php if (!empty($dim)): ?>
+                    <div><strong>Tamanho:</strong> <?php echo esc_html($dim); ?></div>
+                    <?php endif; ?>
                 <?php endif; ?>
                 <?php if (!empty($pedido->cores)): ?>
                     <div><strong>Cores:</strong> <?php echo esc_html($pedido->cores); ?></div>
@@ -396,7 +428,7 @@ class Bordados_Shortcode_Painel_Assistente {
                 <?php if (!empty($pedido->preco_programador) && current_user_can('administrator')): ?>
                     <div><strong>Preço:</strong> $<?php echo number_format($pedido->preco_programador, 2); ?></div>
                 <?php endif; ?>
-                <div><strong>Data:</strong> <?php echo date('d/m/Y H:i', strtotime($pedido->data_criacao)); ?></div>
+                <div><strong>Data:</strong> <?php echo wp_date('d/m/Y H:i', strtotime($pedido->data_criacao)) . ' ' . wp_date('T', strtotime($pedido->data_criacao)); ?></div>
             </div>
             
             <!-- Ações -->
@@ -434,7 +466,7 @@ class Bordados_Shortcode_Painel_Assistente {
                     <button type="button" class="btn-deletar-pedido" 
                             data-pedido-id="<?php echo $pedido->id; ?>"
                             data-nome="<?php echo esc_attr($pedido->nome_bordado); ?>"
-                            style="padding: 8px 15px; background: #dc3545; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 13px;">
+                            style="padding: 8px 15px; background: #dc3545; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 13px; margin-left: auto;">
                         🗑️ Deletar
                     </button>
                 <?php endif; ?>

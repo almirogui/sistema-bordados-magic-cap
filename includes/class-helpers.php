@@ -601,14 +601,14 @@ class Bordados_Helpers {
      * Formatar data brasileira
      */
     public static function formatar_data($data) {
-        return date('d/m/Y', strtotime($data));
+        return wp_date('d/m/Y', strtotime($data));
     }
     
     /**
      * Formatar data e hora brasileira
      */
     public static function formatar_data_hora($data) {
-        return date('d/m/Y H:i', strtotime($data));
+        return wp_date('d/m/Y H:i', strtotime($data)) . ' ' . wp_date('T', strtotime($data));
     }
     
     /**

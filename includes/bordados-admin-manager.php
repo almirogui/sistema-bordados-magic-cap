@@ -240,7 +240,7 @@ class Bordados_Admin_Manager {
                         </p>
                         <p>
                             <strong>📊 Total de pedidos ativos:</strong> <?php echo count($pedidos_ativos); ?> | 
-                            <strong>🕒 Última atualização:</strong> <?php echo date('d/m/Y H:i:s'); ?>
+                            <strong>🕒 Última atualização:</strong> <?php echo wp_date('d/m/Y H:i:s') . ' ' . wp_date('T'); ?>
                         </p>
                     </div>
                     <div class="footer-actions">
