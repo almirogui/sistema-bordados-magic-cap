@@ -217,6 +217,7 @@ class Bordados_Shortcode_Admin_Pedidos {
                         <th>Pedido</th>
                         <th>Customer</th>
                         <th>Programador</th>
+                        <th>Img</th>
                         <th>Trabalho</th>
                         <th>Dimensions</th>
                         <th>Prazo</th>
@@ -231,6 +232,24 @@ class Bordados_Shortcode_Admin_Pedidos {
                         <td style="font-weight: bold;">#<?php echo $pedido->id; ?></td>
                         <td><?php echo esc_html($pedido->cliente_nome); ?></td>
                         <td><?php echo esc_html($pedido->programador_nome); ?></td>
+                        <td style="text-align: center;">
+                            <?php
+                            $img_url = '';
+                            if (!empty($pedido->arquivos_finais)) {
+                                $finais = json_decode($pedido->arquivos_finais, true);
+                                if (is_array($finais)) foreach ($finais as $f) {
+                                    $ext = strtolower(pathinfo($f, PATHINFO_EXTENSION));
+                                    if (in_array($ext, ['jpg','jpeg','png','gif','bmp','webp'])) { $img_url = $f; break; }
+                                }
+                            }
+                            if (empty($img_url) && !empty($pedido->arquivos_cliente)) { $cli = json_decode($pedido->arquivos_cliente, true); if (is_array($cli)) foreach ($cli as $f) { $ext = strtolower(pathinfo($f, PATHINFO_EXTENSION)); if (in_array($ext, ['jpg','jpeg','png','gif','bmp','webp'])) { $img_url = $f; break; } } }
+                            ?>
+                            <?php if (!empty($img_url)): ?>
+                                <?php echo Bordados_Helpers::exibir_arquivo($img_url, '55px'); ?>
+                            <?php else: ?>
+                                <span style="color: #ccc; font-size: 20px;">🖼️</span>
+                            <?php endif; ?>
+                        </td>
                         <td>
                             <?php echo esc_html($pedido->nome_bordado); ?>
                             <br><small style="color: #666;">
@@ -310,9 +329,7 @@ class Bordados_Shortcode_Admin_Pedidos {
                             }
                         }
                         // Fallback: arquivo do cliente
-                        if (empty($img_url)) {
-                            $img_url = Bordados_Helpers::obter_primeiro_arquivo($trabalho);
-                        }
+                            if (empty($img_url) && !empty($trabalho->arquivos_cliente)) { $cli = json_decode($trabalho->arquivos_cliente, true); if (is_array($cli)) foreach ($cli as $f) { $ext = strtolower(pathinfo($f, PATHINFO_EXTENSION)); if (in_array($ext, ['jpg','jpeg','png','gif','bmp','webp'])) { $img_url = $f; break; } } }
                     ?>
                     <tr>
                         <td style="font-weight: bold;">#<?php echo $trabalho->id; ?></td>
