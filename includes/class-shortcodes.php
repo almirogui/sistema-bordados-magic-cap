@@ -153,6 +153,7 @@ class Bordados_Shortcodes {
             'observacoes' => $pedido->observacoes,
             'observacoes_programador' => $pedido->observacoes_programador,
             'preco_programador' => $pedido->preco_programador,
+            'preco_final' => $pedido->preco_final,
             'cliente' => array(
                 'nome' => $pedido->cliente_nome, 
                 'email' => $pedido->cliente_email

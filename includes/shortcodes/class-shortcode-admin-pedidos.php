@@ -281,20 +281,50 @@ class Bordados_Shortcode_Admin_Pedidos {
                         <th>Pedido</th>
                         <th>Customer</th>
                         <th>Programador</th>
+                        <th>Img</th>
                         <th>Trabalho</th>
                         <th>Dimensions</th>
                         <th>Prazo</th>
-                        <th>Preço</th>
+                        <th>Preço Prog.</th>
+                        <th>Preço Final</th>
                         <th>Date</th>
                         <th>Ações</th>
                     </tr>
                 </thead>
                 <tbody>
                     <?php foreach ($trabalhos_concluidos as $trabalho): ?>
+                    <?php
+                        // Melhoria 1: Obter imagem - prioridade: arquivo final do revisor (apenas imagens), fallback: arquivo do cliente
+                        $img_url = '';
+                        $ext_imagens = ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp'];
+                        if (!empty($trabalho->arquivos_finais)) {
+                            $finais = json_decode($trabalho->arquivos_finais, true);
+                            if (!empty($finais) && is_array($finais)) {
+                                foreach ($finais as $f) {
+                                    $ext = strtolower(pathinfo($f, PATHINFO_EXTENSION));
+                                    if (in_array($ext, $ext_imagens)) {
+                                        $img_url = $f;
+                                        break;
+                                    }
+                                }
+                            }
+                        }
+                        // Fallback: arquivo do cliente
+                        if (empty($img_url)) {
+                            $img_url = Bordados_Helpers::obter_primeiro_arquivo($trabalho);
+                        }
+                    ?>
                     <tr>
                         <td style="font-weight: bold;">#<?php echo $trabalho->id; ?></td>
                         <td><?php echo esc_html($trabalho->cliente_nome); ?></td>
                         <td><?php echo esc_html($trabalho->programador_nome); ?></td>
+                        <td style="text-align: center;">
+                            <?php if (!empty($img_url)): ?>
+                                <?php echo Bordados_Helpers::exibir_arquivo($img_url, '55px'); ?>
+                            <?php else: ?>
+                                <span style="color: #ccc; font-size: 20px;">🖼️</span>
+                            <?php endif; ?>
+                        </td>
                         <td>
                             <?php echo esc_html($trabalho->nome_bordado); ?>
                             <br><small style="color: #666;">
@@ -307,8 +337,19 @@ class Bordados_Shortcode_Admin_Pedidos {
                         <td style="text-align: center;">
                             <?php echo Bordados_Helpers::get_prazo_badge_english($trabalho->prazo_entrega); ?>
                         </td>
+                        <!-- Melhoria 2: Preço do programador -->
                         <td style="text-align: right;">
                             <?php echo Bordados_Helpers::formatar_preco($trabalho->preco_programador); ?>
+                        </td>
+                        <!-- Melhoria 2: Preço final (definido pelo revisor) -->
+                        <td style="text-align: right;">
+                            <?php if (!empty($trabalho->preco_final)): ?>
+                                <strong style="color: #28a745;">
+                                    <?php echo Bordados_Helpers::formatar_preco($trabalho->preco_final); ?>
+                                </strong>
+                            <?php else: ?>
+                                <span style="color: #aaa; font-size: 11px;">—</span>
+                            <?php endif; ?>
                         </td>
                         <td style="font-size: 12px;">
                             <?php echo Bordados_Helpers::formatar_data($trabalho->data_conclusao); ?>
@@ -374,7 +415,38 @@ class Bordados_Shortcode_Admin_Pedidos {
                     
                     // Montar HTML com dados reais
                     let html = `
-                        <div class="pedido-detalhes-completo">
+                        <div class="pedido-detalhes-completo">`;
+                    
+                    // Melhoria 3: Imagem do serviço no topo do modal
+                    let imgUrl = '';
+                    const extImg = ['jpg','jpeg','png','gif','bmp','webp'];
+                    // Prioridade: arquivo final do revisor
+                    if (pedido.arquivos_finais && pedido.arquivos_finais.length > 0) {
+                        const imgArq = pedido.arquivos_finais.find(a => {
+                            const ext = a.split('.').pop().toLowerCase();
+                            return extImg.includes(ext);
+                        });
+                        if (imgArq) imgUrl = imgArq.replace('http://', 'https://');
+                    }
+                    // Fallback: arquivo do cliente
+                    if (!imgUrl && pedido.arquivos_cliente && pedido.arquivos_cliente.length > 0) {
+                        const imgArq = pedido.arquivos_cliente.find(a => {
+                            const ext = a.split('.').pop().toLowerCase();
+                            return extImg.includes(ext);
+                        });
+                        if (imgArq) imgUrl = imgArq.replace('http://', 'https://');
+                    }
+                    if (imgUrl) {
+                        html += `
+                            <div style="text-align:center; margin-bottom:20px;">
+                                <img src="${imgUrl}" alt="Imagem do serviço" 
+                                     style="max-width:100%; max-height:220px; border-radius:8px; border:1px solid #ddd; object-fit:contain; cursor:pointer;"
+                                     onclick="window.open(this.src,'_blank')">
+                                <p style="font-size:11px; color:#999; margin:4px 0 0;">Clique para ampliar</p>
+                            </div>`;
+                    }
+
+                    html += `
                             <h4>📋 Informações Básicas</h4>
                             <p><strong>Nome do Bordado:</strong> ${pedido.nome_bordado}</p>
                             <p><strong>ID do Pedido:</strong> #${pedido.id}</p>
@@ -402,9 +474,12 @@ class Bordados_Shortcode_Admin_Pedidos {
                             <p>${pedido.observacoes_programador}</p>
                             ` : ''}
                             
-                            ${pedido.preco_programador ? `
-                            <h4>💰 Preço</h4>
-                            <p>R$ ${pedido.preco_programador}</p>
+                            ${(pedido.preco_programador || pedido.preco_final) ? `
+                            <h4>💰 Preços</h4>
+                            <div style="display:flex; gap:30px; flex-wrap:wrap;">
+                                ${pedido.preco_programador ? `<p style="margin:0;"><strong>Programador:</strong> R$ ${pedido.preco_programador}</p>` : ''}
+                                ${pedido.preco_final ? `<p style="margin:0;"><strong style="color:#28a745;">Final (Revisor):</strong> <strong style="color:#28a745;">R$ ${pedido.preco_final}</strong></p>` : ''}
+                            </div>
                             ` : ''}
                             
                             <h4>📅 Datas</h4>
