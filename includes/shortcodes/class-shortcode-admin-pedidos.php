@@ -255,7 +255,7 @@ class Bordados_Shortcode_Admin_Pedidos {
                             <?php endif; ?>
                         </td>
                         <td style="font-size: 12px;">
-                            <?php echo Bordados_Helpers::formatar_data($pedido->data_atribuicao); ?>
+                            <?php echo Bordados_Helpers::formatar_data_hora($pedido->data_atribuicao); ?>
                         </td>
                         <td style="text-align: center;">
                             <button onclick="visualizarPedidoAdmin(<?php echo $pedido->id; ?>, '<?php echo esc_js($pedido->nome_bordado); ?>')" 
@@ -287,7 +287,7 @@ class Bordados_Shortcode_Admin_Pedidos {
                         <th>Prazo</th>
                         <th>Preço Prog.</th>
                         <th>Preço Final</th>
-                        <th>Date</th>
+                        <th>Criação</th>
                         <th>Ações</th>
                     </tr>
                 </thead>
@@ -352,7 +352,7 @@ class Bordados_Shortcode_Admin_Pedidos {
                             <?php endif; ?>
                         </td>
                         <td style="font-size: 12px;">
-                            <?php echo Bordados_Helpers::formatar_data($trabalho->data_conclusao); ?>
+                            <?php echo Bordados_Helpers::formatar_data_hora($trabalho->data_criacao); ?>
                         </td>
                         <td style="text-align: center;">
                             <button onclick="visualizarPedidoAdmin(<?php echo $trabalho->id; ?>, '<?php echo esc_js($trabalho->nome_bordado); ?>')" 
