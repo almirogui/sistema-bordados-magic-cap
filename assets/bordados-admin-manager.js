@@ -352,17 +352,14 @@ function visualizarPedido(pedidoId, nomeBordado) {
                     html += '\
                         <h4>💰 Preço</h4>\
                         <p>R$ ' + pedido.preco_programador + '</p>';
-                }
-                
-                html += '\
-                    <h4>📅 Datas</h4>\
-                    <p><strong>Criação:</strong> ' + pedido.datas.criacao + '</p>';
+                html += '<h4>📅 Datas (horário local)</h4>';
+                html += '<p><strong>Criação:</strong> ' + fmtDataLocal(pedido.datas.criacao) + '</p>';
                 
                 if (pedido.datas.atribuicao) {
-                    html += '<p><strong>Atribuição:</strong> ' + pedido.datas.atribuicao + '</p>';
+                    html += '<p><strong>Atribuição:</strong> ' + fmtDataLocal(pedido.datas.atribuicao) + '</p>';
                 }
                 if (pedido.datas.conclusao) {
-                    html += '<p><strong>Conclusão:</strong> ' + pedido.datas.conclusao + '</p>';
+                    html += '<p><strong>Conclusão:</strong> ' + fmtDataLocal(pedido.datas.conclusao) + '</p>';
                 }
                 
                 // Arquivos do cliente
@@ -547,3 +544,18 @@ if (document.readyState === 'loading') {
 }
 
 console.log('✅ bordados-admin-manager.js carregado - Todas as funções prontas');
+
+// Converte data do servidor (New York) para horário local do cliente
+function fmtDataLocal(dataStr) {
+    if (!dataStr) return '';
+    var isoNY = dataStr.replace(' ', 'T');
+    var nyDate = new Date(new Date(isoNY).toLocaleString('en-US', {timeZone: 'America/New_York'}));
+    var utcDate = new Date(new Date(isoNY).getTime() + (new Date(isoNY) - nyDate));
+    var tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    var formatado = utcDate.toLocaleString('en-GB', {
+        timeZone: tz, day: '2-digit', month: '2-digit', year: 'numeric',
+        hour: '2-digit', minute: '2-digit', hour12: false
+    });
+    var off = -new Date().getTimezoneOffset(); var tzLabel = 'UTC' + (off >= 0 ? '+' : '') + Math.floor(off/60) + (off%60 ? ':' + String(Math.abs(off%60)).padStart(2,'0') : '');
+    return formatado + ' <span style="background:#e8f5e9;color:#2e7d32;padding:1px 6px;border-radius:8px;font-size:11px;font-weight:bold;margin-left:4px;" title="' + tz + '">' + tzLabel + '</span>';
+}

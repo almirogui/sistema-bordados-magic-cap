@@ -428,7 +428,7 @@ class Bordados_Shortcode_Painel_Assistente {
                 <?php if (!empty($pedido->preco_programador) && current_user_can('administrator')): ?>
                     <div><strong>Preço:</strong> $<?php echo number_format($pedido->preco_programador, 2); ?></div>
                 <?php endif; ?>
-                <div><strong>Data:</strong> <?php echo wp_date('d/m/Y H:i', strtotime($pedido->data_criacao)) . ' ' . wp_date('T', strtotime($pedido->data_criacao)); ?></div>
+                <div><strong>Data:</strong> <span class="data-local" data-utc="<?php echo gmdate('c', strtotime($pedido->data_criacao)); ?>"><?php echo wp_date('d/m/Y H:i', strtotime($pedido->data_criacao)) . ' ' . wp_date('T', strtotime($pedido->data_criacao)); ?></span></div>
             </div>
             
             <!-- Ações -->

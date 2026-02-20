@@ -1019,3 +1019,34 @@ window.addEventListener('load', function() {
 });
 
 console.log('=== JavaScript carregado COM INTEGRAÇÃO TOAST (v3.3.1) ===');
+
+// =====================================================
+// Conversão automática de datas para horário local
+// Funciona em todos os painéis que usam formatar_data_hora()
+// =====================================================
+function converterDatasLocais() {
+    document.querySelectorAll('span.data-local').forEach(function(span) {
+        var utc = span.getAttribute('data-utc');
+        if (!utc) return;
+        var d = new Date(utc);
+        if (isNaN(d)) return;
+        var tzCliente = Intl.DateTimeFormat().resolvedOptions().timeZone;
+        var formatado = d.toLocaleString('en-GB', {
+            timeZone: tzCliente,
+            day: '2-digit', month: '2-digit', year: 'numeric',
+            hour: '2-digit', minute: '2-digit', hour12: false
+        });
+        var off = -new Date().getTimezoneOffset(); var tzLabel = 'UTC' + (off >= 0 ? '+' : '') + Math.floor(off/60) + (off%60 ? ':' + String(Math.abs(off%60)).padStart(2,'0') : '');
+        span.innerHTML = formatado + ' <span style="background:#e8f5e9;color:#2e7d32;padding:1px 6px;border-radius:8px;font-size:11px;font-weight:bold;margin-left:4px;" title="' + tzCliente + '">' + tzLabel + '</span>';
+    });
+}
+
+// Executar quando a página carregar
+document.addEventListener('DOMContentLoaded', converterDatasLocais);
+
+// Executar também após carregamentos AJAX (para modais e painéis dinâmicos)
+if (typeof jQuery !== 'undefined') {
+    jQuery(document).ajaxComplete(function() {
+        setTimeout(converterDatasLocais, 100);
+    });
+}

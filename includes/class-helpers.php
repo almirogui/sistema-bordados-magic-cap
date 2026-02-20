@@ -608,7 +608,7 @@ class Bordados_Helpers {
      * Formatar data e hora brasileira
      */
     public static function formatar_data_hora($data) {
-        return wp_date('d/m/Y H:i', strtotime($data)) . ' ' . wp_date('T', strtotime($data));
+        $ts = strtotime($data); $utc = gmdate('c', $ts); return '<span class="data-local" data-utc="' . esc_attr($utc) . '">' . wp_date('d/m/Y H:i', $ts) . ' ' . wp_date('T', $ts) . '</span>';
     }
     
     /**
