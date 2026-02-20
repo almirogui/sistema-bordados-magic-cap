@@ -482,10 +482,10 @@ class Bordados_Shortcode_Admin_Pedidos {
                             </div>
                             ` : ''}
                             
-                            <h4>📅 Datas</h4>
-                            <p><strong>Criação:</strong> ${pedido.datas.criacao}</p>
-                            ${pedido.datas.atribuicao ? `<p><strong>Atribuição:</strong> ${pedido.datas.atribuicao}</p>` : ''}
-                            ${pedido.datas.conclusao ? `<p><strong>Conclusão:</strong> ${pedido.datas.conclusao}</p>` : ''}
+                            <h4>📅 Datas (horário local)</h4>
+                            <p><strong>Criação:</strong> ${formatarDataEST(pedido.datas.criacao)}</p>
+                            ${pedido.datas.atribuicao ? `<p><strong>Atribuição:</strong> ${formatarDataEST(pedido.datas.atribuicao)}</p>` : ''}
+                            ${pedido.datas.conclusao ? `<p><strong>Conclusão:</strong> ${formatarDataEST(pedido.datas.conclusao)}</p>` : ''}
                     `;
                     
                     // Arquivos do cliente
@@ -523,6 +523,42 @@ class Bordados_Shortcode_Admin_Pedidos {
     
     function fecharModalVisualizarAdmin() {
         document.getElementById('modal-visualizar-admin').style.display = 'none';
+    }
+    
+    // Converte data do servidor (America/New_York) para o horário local do navegador do cliente
+    function formatarDataEST(dataStr) {
+        if (!dataStr) return '';
+        
+        // Parsear "YYYY-MM-DD HH:MM:SS" interpretando como America/New_York
+        const parts = dataStr.match(/(\d{4})-(\d{2})-(\d{2})\s+(\d{2}):(\d{2}):(\d{2})/);
+        if (!parts) return dataStr;
+        
+        // Criar string ISO com offset de New York (o navegador converte corretamente)
+        // Usamos Intl para determinar o offset atual de New York naquele momento
+        const isoNY = `${parts[1]}-${parts[2]}-${parts[3]}T${parts[4]}:${parts[5]}:${parts[6]}`;
+        
+        // Converter de New York para UTC
+        const nyDate = new Date(new Date(isoNY).toLocaleString('en-US', {timeZone: 'America/New_York'}));
+        const utcDate = new Date(new Date(isoNY).getTime() + (new Date(isoNY) - nyDate));
+        
+        // Fuso horário do cliente
+        const tzCliente = Intl.DateTimeFormat().resolvedOptions().timeZone;
+        
+        // Formatar no horário local do cliente
+        const formatado = utcDate.toLocaleString('en-GB', {
+            timeZone: tzCliente,
+            day: '2-digit',
+            month: '2-digit',
+            year: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit',
+            second: '2-digit',
+            hour12: false
+        });
+        const off = -new Date().getTimezoneOffset(); const tzLabel = 'UTC' + (off >= 0 ? '+' : '') + Math.floor(off/60) + (off%60 ? ':' + String(Math.abs(off%60)).padStart(2,'0') : '');
+        // Label com nome curto do fuso (ex: BRT, CET, EST)
+        
+        return `${formatado} <span style="background:#e8f5e9;color:#2e7d32;padding:1px 6px;border-radius:8px;font-size:11px;font-weight:bold;margin-left:5px;" title="${tzCliente}">${tzLabel}</span>`;
     }
     
     </script>
